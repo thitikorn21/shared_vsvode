@@ -1,0 +1,2300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datalab - Free-Form Canvas (Interactive)</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Libraries for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#2C3E50',
+                        'secondary-gray': '#E0E6EE',
+                        'canvas-bg': '#F8F9FB',
+                        'accent-teal': '#2ECC71',
+                        'accent-teal-dark': '#27AE60',
+                        'text-dark': '#34495E',
+                        'text-light': '#ECF0F1',
+                        'element-border': '#CBD5E0',
+                        'element-bg': '#FFFFFF',
+                        'danger-red': '#E74C3C',
+                        'danger-bg': '#FDEDEC',
+                        'source-bg': '#F0F4F8',
+                    },
+                    fontFamily: {
+                        display: ['Outfit', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    boxShadow: {
+                        'element': '0 4px 10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+                        'modal': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2C3E50; }
+
+        /* Canvas Background */
+        #canvas-area {
+            position: relative;
+            background-image:
+                linear-gradient(to right, theme('colors.secondary-gray') 1px, transparent 1px),
+                linear-gradient(to bottom, theme('colors.secondary-gray') 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: -1px -1px;
+            overflow: hidden; 
+        }
+
+        /* Canvas Element */
+        .canvas-element {
+            position: absolute;
+            background-color: theme('colors.element-bg');
+            border: 1px solid theme('colors.element-border');
+            border-radius: 12px;
+            box-shadow: theme('boxShadow.element');
+            transition: box-shadow 0.1s ease-out, border-color 0.1s ease-out;
+            cursor: grab;
+            resize: both;
+            overflow: hidden; 
+            min-width: 100px;
+            min-height: 50px;
+            padding: 1rem;
+            user-select: none;
+        }
+        
+        .element-content {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+        }
+
+        /* Specific content inside that should be selectable/editable */
+        .canvas-element [contenteditable="true"], 
+        .canvas-element pre, 
+        .canvas-element h3, 
+        .canvas-element p,
+        .canvas-element td,
+        .canvas-element th,
+        .canvas-element ul,
+        .canvas-element li {
+            user-select: text;
+            cursor: text;
+        }
+
+        .canvas-element.selected {
+            border-color: theme('colors.accent-teal');
+            box-shadow: 0 0 0 2px theme('colors.accent-teal'), theme('boxShadow.element');
+            z-index: 50; 
+        }
+        .canvas-element:hover {
+             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.12);
+        }
+        
+        /* Drag over effect for elements */
+        .canvas-element.drag-over {
+            border-color: theme('colors.accent-teal');
+            background-color: theme('colors.secondary-gray');
+            box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.2);
+        }
+
+        /* Icon styling */
+        .icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background-color: currentColor;
+            mask-size: cover;
+            -webkit-mask-size: cover;
+        }
+        .icon-save { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>'); }
+        .icon-share { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.52.47 1.2.77 1.96.77 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81c-.52-.47-1.2-.77-1.96-.77-1.66 0-3 1.34-3 3s1.34 3 3 3c.76 0 1.44-.3 1.96-.77l7.05 4.11c-.05.23-.09.46-.09.7 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/></svg>'); }
+        .icon-user { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.29-6-3.22.03-1.99 4-3.88 6-3.88s5.97 1.89 6 3.88c-1.29 1.93-3.5 3.22-6 3.22z"/></svg>'); }
+        .icon-text-block { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V9H4v2zm0-6v2h16V5H4z"/></svg>'); }
+        .icon-image { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>'); }
+        .icon-chart { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17H7V10H9V17zm4 0h-2V7h2V17zm4 0h-2V13h2V17zm3-15H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16z"/></svg>'); }
+        .icon-code { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>'); }
+        .icon-link { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>'); }
+        .icon-shape { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5z"/></svg>'); }
+        .icon-table { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v4h16V5H4zm0 6v4h4v-4H4zm6 0v4h4v-4h-4zm6 0v4h4v-4h-4zm-12 6v2h4v-2H4zm6 0v2h4v-2h-4zm6 0v2h4v-2h-4z"/></svg>'); }
+        .icon-upload { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>'); }
+        .icon-api { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 12c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2zm-2-9c-4.97 0-9 4.03-9 9H0l4 4 4-4H5c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.51 0-2.91-.49-4.06-1.3l-1.42 1.44C8.04 20.3 9.94 21 12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>'); }
+        .icon-csv { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>'); }
+        .icon-graph-bar { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); }
+        .icon-eye { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>'); }
+        .icon-trash { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>'); }
+        .icon-bi { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>'); }
+        .icon-edit { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>'); }
+        .icon-folder-open { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>'); }
+        .icon-save-disk { mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>'); }
+
+        /* Sort & Filter Styles */
+        th { 
+            position: relative; 
+            cursor: pointer; 
+            min-width: 200px; 
+        }
+        th:hover .sort-icon { opacity: 1; }
+        .sort-icon { 
+            display: inline-block; width: 12px; height: 12px; margin-left: 4px; opacity: 0.3; transition: opacity 0.2s;
+            background-color: currentColor;
+            mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h18v2H3v-2zm6-7h12v2H9V5zm-6 7h18v2H3v-2z"/></svg>'); 
+            -webkit-mask-size: cover; mask-size: cover;
+        }
+        
+        /* Column Resizer Styles */
+        .resizer {
+            position: absolute; top: 0; right: 0; width: 5px; cursor: col-resize; user-select: none; height: 100%; z-index: 20;
+        }
+        .resizer:hover, .resizing {
+            background-color: theme('colors.accent-teal');
+        }
+
+        /* Column Menu Styles */
+        .col-menu {
+            position: absolute; top: 100%; right: 0; 
+            background: white; border: 1px solid #CBD5E0; 
+            padding: 8px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            z-index: 60; min-width: 150px; display: none;
+        }
+        .col-menu.show { display: block; }
+        .col-menu label {
+            display: flex; items-center: center; margin-bottom: 4px; cursor: pointer; font-size: 0.75rem; color: #34495E;
+        }
+        .col-menu input { margin-right: 6px; }
+
+        /* Custom Modal Styles */
+        .custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black backdrop */
+            display: flex; justify-content: center; align-items: center; /* Fixed typo: items-center -> align-items */
+            z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .custom-modal-overlay.active {
+            opacity: 1; pointer-events: auto;
+        }
+        .custom-modal {
+            background: white; width: 400px; padding: 24px; border-radius: 12px;
+            box-shadow: theme('boxShadow.modal'); transform: scale(0.95); transition: transform 0.2s ease;
+            max-height: 90vh; overflow-y: auto; /* Added constraints */
+        }
+        .custom-modal-overlay.active .custom-modal {
+            transform: scale(1);
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                position: fixed; top: 64px; left: 0; width: 100%; height: auto;
+                max-height: calc(100vh - 64px); overflow-y: auto;
+                transform: translateY(-100%); transition: transform 0.3s ease-in-out;
+                z-index: 40; border-bottom: 1px solid theme('colors.element-border');
+            }
+            #sidebar.open { transform: translateY(0); }
+            #sidebar-toggle-button { display: flex; }
+        }
+    </style>
+</head>
+<body class="bg-canvas-bg font-body text-text-dark min-h-screen overflow-hidden">
+
+    <!-- Login Modal -->
+    <div id="login-overlay" class="fixed inset-0 bg-primary-blue z-[9999] flex flex-col items-center justify-center text-white transition-opacity duration-500">
+        <div class="bg-white text-text-dark p-8 rounded-xl shadow-2xl w-96">
+            <div class="flex items-center justify-center mb-6">
+                <h1 class="text-3xl font-display font-bold text-primary-blue">Datalab</h1>
+            </div>
+            <h2 class="text-xl font-semibold mb-4 text-center">Login</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Username</label>
+                    <input type="text" id="login-username" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm" placeholder="admin">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Password</label>
+                    <input type="password" id="login-password" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm" placeholder="••••">
+                </div>
+                <button id="btn-login-submit" class="w-full py-2 bg-accent-teal hover:bg-accent-teal-dark text-white rounded-md font-medium transition shadow-md mt-2">Sign In</button>
+                <p id="login-error" class="text-danger-red text-xs text-center hidden">Invalid username or password</p>
+            </div>
+        </div>
+        <p class="mt-8 text-white/50 text-sm">Simple Secure Canvas</p>
+    </div>
+
+    <!-- Modal for Adding Link -->
+    <div id="add-link-modal" class="custom-modal-overlay">
+        <div class="custom-modal">
+            <h3 class="text-lg font-display font-semibold text-primary-blue mb-4">Add Reference Link</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-dark mb-1">Display Name</label>
+                    <input type="text" id="link-name-input" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm" placeholder="e.g., Project Specs">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-dark mb-1">URL</label>
+                    <input type="text" id="link-url-input" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm" placeholder="https://example.com">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button id="cancel-link-btn" class="px-4 py-2 rounded text-sm text-text-dark hover:bg-secondary-gray transition">Cancel</button>
+                <button id="confirm-link-btn" class="px-4 py-2 rounded text-sm bg-accent-teal text-white hover:bg-accent-teal-dark transition shadow-sm font-medium">Add Link</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for Embedding BI -->
+    <div id="embed-bi-modal" class="custom-modal-overlay">
+        <div class="custom-modal" style="width: 500px;">
+            <h3 class="text-lg font-display font-semibold text-primary-blue mb-4">Embed BI Dashboard</h3>
+            <p class="text-xs text-text-dark/70 mb-4">Paste the iframe code from Power BI, Looker Studio, or Tableau.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-dark mb-1">Iframe Code</label>
+                    <textarea id="bi-code-input" rows="5" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-xs font-mono" placeholder='<iframe src="..."></iframe>'></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button id="cancel-bi-btn" class="px-4 py-2 rounded text-sm text-text-dark hover:bg-secondary-gray transition">Cancel</button>
+                <button id="confirm-bi-btn" class="px-4 py-2 rounded text-sm bg-accent-teal text-white hover:bg-accent-teal-dark transition shadow-sm font-medium">Embed</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for Chart Editor -->
+    <div id="chart-editor-modal" class="custom-modal-overlay">
+        <div class="custom-modal" style="width: 450px;">
+            <h3 class="text-lg font-display font-semibold text-primary-blue mb-4">Chart Editor</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-dark mb-1">X-Axis (Category)</label>
+                    <select id="chart-x-select" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-dark mb-1">Y-Axis (Value)</label>
+                    <select id="chart-y-select" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm bg-white"></select>
+                </div>
+                <!-- NEW: Sort Order Select -->
+                <div>
+                    <label class="block text-sm font-medium text-text-dark mb-1">Sort Order</label>
+                    <select id="chart-sort-select" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm bg-white">
+                        <option value="val_desc">Value: High to Low</option>
+                        <option value="val_asc">Value: Low to High</option>
+                        <option value="label_asc">Category: A to Z</option>
+                        <option value="label_desc">Category: Z to A</option>
+                    </select>
+                </div>
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                         <label class="block text-sm font-medium text-text-dark mb-1">Chart Type</label>
+                         <select id="chart-type-select" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm bg-white">
+                             <option value="bar">Bar Chart</option>
+                             <option value="line">Line Chart (Simulated)</option>
+                             <option value="combo">Combo (Bar+Line)</option>
+                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-text-dark mb-1">Color</label>
+                        <input type="color" id="chart-color-input" class="w-16 h-9 p-1 border border-element-border rounded-md" value="#2ECC71">
+                    </div>
+                </div>
+                 <div class="flex space-x-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-text-dark mb-1">Highlight Color</label>
+                        <input type="color" id="chart-highlight-input" class="w-16 h-9 p-1 border border-element-border rounded-md" value="#27AE60">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-text-dark mb-1">Top Items Count</label>
+                        <input type="number" id="chart-highlight-count" class="w-full px-3 py-2 border border-element-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent-teal/50 text-sm" value="3" min="0">
+                    </div>
+                </div>
+                <!-- Show Values Toggle -->
+                <div class="flex items-center mt-2">
+                    <input type="checkbox" id="chart-show-values" class="w-4 h-4 text-accent-teal rounded border-element-border focus:ring-accent-teal/50">
+                    <label for="chart-show-values" class="ml-2 text-sm font-medium text-text-dark">Show Values</label>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button id="cancel-chart-btn" class="px-4 py-2 rounded text-sm text-text-dark hover:bg-secondary-gray transition">Cancel</button>
+                <button id="confirm-chart-btn" class="px-4 py-2 rounded text-sm bg-accent-teal text-white hover:bg-accent-teal-dark transition shadow-sm font-medium">Update Chart</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden File Inputs -->
+    <input type="file" id="img-file-input" accept="image/*" class="hidden">
+    <input type="file" id="project-file-input" accept=".json" class="hidden">
+
+    <!-- Modal for Delete Confirmation -->
+    <div id="delete-link-modal" class="custom-modal-overlay">
+        <div class="custom-modal">
+            <h3 class="text-lg font-display font-semibold text-primary-blue mb-2">Confirm Deletion</h3>
+            <p class="text-sm text-text-dark mb-6">Delete this link?</p>
+            <div class="flex justify-end space-x-2">
+                <button id="cancel-delete-btn" class="px-4 py-2 rounded text-sm text-text-dark hover:bg-secondary-gray transition">Cancel</button>
+                <button id="confirm-delete-btn" class="px-4 py-2 rounded text-sm bg-danger-red text-white hover:bg-red-600 transition shadow-sm font-medium">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="flex items-center justify-between p-4 bg-primary-blue text-text-light shadow-lg z-50 relative">
+        <div class="flex items-center">
+            <h1 class="text-3xl font-display font-bold mr-4">Datalab</h1>
+            <span class="text-accent-teal text-sm font-body tracking-wider">Canvas Workspace</span>
+        </div>
+        <div class="flex items-center space-x-4">
+             <!-- Project Buttons -->
+             <button id="btn-open-project" class="flex items-center px-4 py-2 rounded-lg bg-primary-blue border border-text-light hover:border-accent-teal hover:text-accent-teal transition-all duration-200 text-text-light font-body text-sm shadow-md">
+                <span class="icon icon-folder-open mr-2 text-text-light"></span> Open Project
+            </button>
+            <button id="btn-save-project" class="flex items-center px-4 py-2 rounded-lg bg-primary-blue border border-text-light hover:border-accent-teal hover:text-accent-teal transition-all duration-200 text-text-light font-body text-sm shadow-md">
+                <span class="icon icon-save-disk mr-2 text-text-light"></span> Save Project
+            </button>
+
+            <!-- Save PDF -->
+            <button id="btn-save" class="flex items-center px-4 py-2 rounded-lg bg-accent-teal hover:bg-accent-teal-dark transition-colors duration-200 text-text-light font-body text-sm shadow-md">
+                <span class="icon icon-save mr-2 text-text-light"></span> Save as PDF
+            </button>
+            
+            <div class="relative group">
+                <button class="flex items-center justify-center w-10 h-10 rounded-full bg-secondary-gray text-primary-blue hover:bg-text-light hover:text-accent-teal transition-colors duration-200 focus:outline-none shadow-md">
+                    <span class="icon icon-user text-primary-blue group-hover:text-accent-teal"></span>
+                </button>
+                <div class="absolute right-0 mt-2 w-48 bg-element-bg border border-element-border rounded-md shadow-lg py-1 z-10 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-2 transition-all duration-200 ease-out pointer-events-none group-hover:pointer-events-auto">
+                    <a href="#" class="block px-4 py-2 text-sm text-text-dark hover:bg-secondary-gray transition-colors duration-150">Profile Settings</a>
+                    <a href="#" class="block px-4 py-2 text-sm text-text-dark hover:bg-secondary-gray transition-colors duration-150">Sign Out</a>
+                </div>
+            </div>
+            <button id="sidebar-toggle-button" class="md:hidden p-2 rounded-lg text-text-light hover:bg-primary-blue/70 transition-colors duration-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App -->
+    <div class="flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden">
+        <!-- Sidebar ... (Same as before) -->
+        <aside id="sidebar" class="w-full md:w-64 bg-element-bg border-r border-element-border p-4 shadow-xl z-40 flex-shrink-0 md:relative md:transform-none md:translate-y-0 transition-transform duration-300 ease-in-out md:block flex flex-col h-full overflow-y-auto">
+            
+            <!-- Standard Toolbox -->
+            <div class="flex-shrink-0">
+                <h2 class="text-lg font-display font-semibold mb-4 text-primary-blue">Toolbox</h2>
+                <div class="grid grid-cols-2 md:grid-cols-1 gap-3">
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="text">
+                        <span class="icon icon-text-block text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">Text Block</span>
+                    </div>
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="image">
+                        <span class="icon icon-image text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">Image</span>
+                    </div>
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="chart">
+                        <span class="icon icon-chart text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">Data Chart</span>
+                    </div>
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="table">
+                        <span class="icon icon-table text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">Data Table</span>
+                    </div>
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="code">
+                        <span class="icon icon-code text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">Code Snippet</span>
+                    </div>
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="reference_list">
+                        <span class="icon icon-link text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">Reference List</span>
+                    </div>
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="bi_embed">
+                        <span class="icon icon-bi text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">BI Embed</span>
+                    </div>
+                    <div class="toolbox-item p-3 flex flex-col items-center rounded-lg cursor-grab active:cursor-grabbing transition-all duration-200 hover:bg-secondary-gray hover:shadow-sm group border border-transparent hover:border-accent-teal" data-type="shape">
+                        <span class="icon icon-shape text-primary-blue group-hover:text-accent-teal mb-2"></span>
+                        <span class="text-sm font-body text-text-dark group-hover:text-primary-blue">Shape</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW: Data Sources Section -->
+            <div class="mt-6 pt-4 border-t border-element-border flex-1 flex flex-col">
+                <h2 class="text-lg font-display font-semibold mb-3 text-primary-blue flex justify-between items-center">
+                    Data Sources
+                    <span class="text-xs text-text-dark/50 font-normal cursor-help" title="Drag source ONTO a chart or table to connect">?</span>
+                </h2>
+                
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button id="btn-upload-csv" class="flex flex-col items-center justify-center p-2 rounded bg-source-bg hover:bg-secondary-gray border border-transparent hover:border-accent-teal transition-all group">
+                        <span class="icon icon-upload text-primary-blue group-hover:text-accent-teal mb-1 w-5 h-5"></span>
+                        <span class="text-xs font-medium text-text-dark">Upload CSV</span>
+                    </button>
+                    <button id="btn-connect-api" class="flex flex-col items-center justify-center p-2 rounded bg-source-bg hover:bg-secondary-gray border border-transparent hover:border-accent-teal transition-all group">
+                        <span class="icon icon-api text-primary-blue group-hover:text-accent-teal mb-1 w-5 h-5"></span>
+                        <span class="text-xs font-medium text-text-dark">Connect API</span>
+                    </button>
+                </div>
+
+                <!-- Hidden Input -->
+                <input type="file" id="csv-input" accept=".csv" class="hidden">
+
+                <!-- Data Source List -->
+                <div class="flex-1">
+                    <h3 class="text-xs font-semibold text-text-dark/60 uppercase tracking-wider mb-2">Your Tables</h3>
+                    <ul id="data-source-list" class="space-y-2">
+                        <!-- Mock Existing Source -->
+                        <li class="p-2 rounded bg-element-bg border border-element-border shadow-sm cursor-grab active:cursor-grabbing hover:border-accent-teal transition-colors flex items-center group relative pr-8" draggable="true" data-type="datasource_mock" data-name="Sample_Sales_Q3">
+                            <span class="icon icon-csv text-accent-teal w-4 h-4 mr-2"></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-text-dark truncate">Sample_Sales_Q3</p>
+                                <p class="text-[10px] text-text-dark/50">25 rows • CSV</p>
+                            </div>
+                            <button class="delete-source-btn absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-danger-red opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Source">
+                                <span class="icon icon-trash w-3 h-3"></span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <p class="mt-4 text-xs text-text-dark/70 text-center">Drag elements/sources to canvas</p>
+        </aside>
+
+        <!-- Canvas Area -->
+        <main id="main-content-wrapper" class="flex-1 overflow-auto bg-canvas-bg relative">
+            <div id="canvas-area" class="w-[3000px] h-[2000px] p-8">
+                
+                <!-- Initial Mock Content -->
+                <div class="canvas-element selected" style="top: 50px; left: 80px; width: 350px; height: 180px;">
+                    <div class="element-content">
+                        <h3 class="font-display font-semibold text-lg text-primary-blue mb-2" contenteditable="true">Project Overview</h3>
+                        <p class="text-sm text-text-dark font-body" contenteditable="true">
+                            This Datalab canvas consolidates key insights for our Q3 sales performance.
+                            Explore regional trends and product categories.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="canvas-element" data-element-type="chart" style="top: 250px; left: 450px; width: 400px; height: 250px;">
+                    <div class="element-content">
+                         <!-- Header Row with Edit Button -->
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-display font-semibold text-lg text-primary-blue m-0" contenteditable="true">Regional Sales</h3>
+                            <button class="edit-chart-btn text-gray-400 hover:text-accent-teal p-1 rounded transition">
+                                <span class="icon icon-edit w-4 h-4"></span>
+                            </button>
+                        </div>
+                        <div class="chart-container h-32 bg-secondary-gray rounded-lg flex items-end p-2 space-x-2"><div class="w-1/3 bg-primary-blue h-1/2 rounded-t"></div><div class="w-1/3 bg-accent-teal h-3/4 rounded-t"></div><div class="w-1/3 bg-primary-blue h-2/3 rounded-t"></div></div><p class="text-xs text-text-dark/70 mt-2 text-center">Drop data source here</p>
+                    </div>
+                </div>
+
+                <div class="canvas-element" style="top: 300px; left: 100px; width: 380px; height: 150px;">
+                    <div class="element-content">
+                        <h3 class="font-display font-semibold text-lg text-primary-blue mb-2" contenteditable="true">SQL Query</h3>
+                        <pre class="bg-primary-blue/90 text-text-light p-3 rounded-md overflow-x-auto text-xs font-mono shadow-inner"><code>SELECT * FROM sales_q3 WHERE region='East';</code></pre>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebarToggleButton = document.getElementById('sidebar-toggle-button');
+            const sidebar = document.getElementById('sidebar');
+            const canvasArea = document.getElementById('canvas-area');
+            const mainContentWrapper = document.getElementById('main-content-wrapper');
+
+            // --- Mobile Sidebar Toggle ---
+            if (sidebarToggleButton) {
+                sidebarToggleButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sidebar.classList.toggle('open');
+                    mainContentWrapper.classList.toggle('sidebar-open');
+                    if (sidebar.classList.contains('open')) {
+                        mainContentWrapper.style.marginTop = `${sidebar.offsetHeight}px`;
+                        const closeSidebar = (event) => {
+                            if (!sidebar.contains(event.target) && !sidebarToggleButton.contains(event.target)) {
+                                sidebar.classList.remove('open');
+                                mainContentWrapper.classList.remove('sidebar-open');
+                                mainContentWrapper.style.marginTop = '0px';
+                                document.removeEventListener('click', closeSidebar);
+                            }
+                        };
+                        setTimeout(() => document.addEventListener('click', closeSidebar), 0);
+                    } else {
+                        mainContentWrapper.style.marginTop = '0px';
+                    }
+                });
+            }
+
+            // --- LOGIN LOGIC ---
+            const loginOverlay = document.getElementById('login-overlay');
+            const loginBtn = document.getElementById('btn-login-submit');
+            const usernameInput = document.getElementById('login-username');
+            const passwordInput = document.getElementById('login-password');
+            const loginError = document.getElementById('login-error');
+
+            function handleLogin() {
+                const user = usernameInput.value.trim();
+                const pass = passwordInput.value.trim();
+
+                if (user === 'admin' && pass === '5678') {
+                    // Success
+                    loginOverlay.classList.add('opacity-0', 'pointer-events-none');
+                    setTimeout(() => {
+                        loginOverlay.remove();
+                    }, 500);
+                } else {
+                    // Fail
+                    loginError.classList.remove('hidden');
+                    // Shake animation logic optional but nice
+                    usernameInput.classList.add('border-danger-red');
+                    passwordInput.classList.add('border-danger-red');
+                }
+            }
+
+            loginBtn.addEventListener('click', handleLogin);
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
+            
+            // --- PROJECT SAVE/LOAD LOGIC ---
+            const btnSaveProject = document.getElementById('btn-save-project');
+            const btnOpenProject = document.getElementById('btn-open-project');
+            const projectFileInput = document.getElementById('project-file-input');
+
+            // Save Project
+            btnSaveProject.addEventListener('click', () => {
+                const elements = [];
+                document.querySelectorAll('.canvas-element').forEach(el => {
+                    const data = {
+                        type: el.dataset.elementType || 'other',
+                        left: el.style.left,
+                        top: el.style.top,
+                        width: el.style.width,
+                        height: el.style.height,
+                        chartConfig: el.dataset.chartConfig,
+                        chartSource: el.dataset.chartSource
+                    };
+
+                    // Capture specific content based on type
+                    if (data.type === 'text' || data.type === 'code') {
+                         data.html = el.querySelector('.element-content').innerHTML;
+                    } else if (data.type === 'image') {
+                         // Check for uploaded image
+                         const img = el.querySelector('img');
+                         if (img) {
+                             data.imgSrc = img.src; // Base64
+                         }
+                    } else if (data.type === 'table') {
+                         // Save full table HTML to keep edits
+                         data.html = el.querySelector('.element-content').innerHTML;
+                    } else if (data.type === 'reference_list') {
+                        // Save list items
+                        const items = [];
+                        el.querySelectorAll('ul li a').forEach(a => {
+                            items.push({ text: a.innerText, href: a.href });
+                        });
+                        data.listItems = items;
+                    } else if (data.type === 'bi_embed') {
+                        const iframe = el.querySelector('iframe');
+                        if (iframe) data.iframeSrc = iframe.src;
+                    } else if (data.type === 'chart') {
+                         // Chart data is mainly in dataset, but we save title too
+                         const title = el.querySelector('h3');
+                         if(title) data.title = title.innerText;
+                    }
+
+                    elements.push(data);
+                });
+
+                const projectData = JSON.stringify(elements);
+                const blob = new Blob([projectData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'datalab-project.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            // Open Project
+            btnOpenProject.addEventListener('click', () => {
+                projectFileInput.click();
+            });
+
+            projectFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const elements = JSON.parse(event.target.result);
+                        
+                        // Clear canvas
+                        document.querySelectorAll('.canvas-element').forEach(el => el.remove());
+                        
+                        // Recreate elements
+                        elements.forEach(data => {
+                            const el = document.createElement('div');
+                            el.className = 'canvas-element';
+                            el.style.left = data.left;
+                            el.style.top = data.top;
+                            el.style.width = data.width;
+                            el.style.height = data.height;
+                            el.dataset.elementType = data.type;
+                            
+                            if (data.chartConfig) el.dataset.chartConfig = data.chartConfig;
+                            if (data.chartSource) el.dataset.chartSource = data.chartSource;
+
+                            let innerContent = '';
+
+                            // Reconstruct content
+                            if (data.type === 'text' || data.type === 'code' || data.type === 'table') {
+                                innerContent = data.html;
+                            } else if (data.type === 'image') {
+                                if (data.imgSrc) {
+                                    innerContent = `
+                                    <div class="element-content">
+                                        <div class="relative w-full h-full group" style="cursor: pointer;">
+                                            <img src="${data.imgSrc}" class="w-full h-full object-cover rounded pointer-events-none" alt="Uploaded Image">
+                                            <button class="delete-img-btn absolute bottom-2 right-2 bg-white/90 p-1.5 rounded-full shadow-md text-danger-red hover:bg-white hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-10" title="Remove Image">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>`;
+                                } else {
+                                    // Placeholder
+                                    innerContent = `<div class="element-content"><div class="w-full h-full bg-secondary-gray flex flex-col items-center justify-center rounded text-text-dark/50 hover:bg-secondary-gray/80 transition-colors" style="cursor: pointer;"><span class="icon icon-image mb-2 pointer-events-none"></span><span class="text-xs pointer-events-none">Click to Upload Image</span></div></div>`;
+                                }
+                            } else if (data.type === 'reference_list') {
+                                let listHtml = '';
+                                if (data.listItems) {
+                                    data.listItems.forEach(item => {
+                                        listHtml += `<li class="mb-1 group relative pr-6"><a href="${item.href}" target="_blank" class="text-accent-teal hover:underline cursor-alias">${item.text}</a><button class="delete-btn absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-danger-red opacity-0 group-hover:opacity-100 transition-opacity p-1"><span class="icon icon-trash w-3 h-3"></span></button></li>`;
+                                    });
+                                }
+                                innerContent = `
+                                    <div class="element-content">
+                                        <div class="flex flex-col h-full">
+                                            <h3 class="font-display font-semibold text-lg text-primary-blue mb-2" contenteditable="true">Reference List</h3>
+                                            <ul class="list-disc list-inside text-sm text-text-dark font-body flex-1 overflow-y-auto">
+                                                ${listHtml}
+                                            </ul>
+                                            <button class="add-link-btn mt-2 text-[10px] bg-white border border-element-border hover:bg-secondary-gray text-primary-blue px-2 py-1 rounded transition w-fit self-end flex items-center shadow-sm">
+                                                <span class="font-bold text-sm mr-1">+</span> Add Link
+                                            </button>
+                                        </div>
+                                    </div>`;
+                            } else if (data.type === 'bi_embed') {
+                                if (data.iframeSrc) {
+                                     innerContent = `<div class="element-content"><div class="w-full h-full"><iframe src="${data.iframeSrc}" class="w-full h-full border-none" allowfullscreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe></div></div>`;
+                                } else {
+                                     innerContent = `<div class="element-content"><div class="w-full h-full bg-secondary-gray flex flex-col items-center justify-center rounded text-text-dark/50 hover:bg-secondary-gray/80 transition-colors"><span class="icon icon-bi mb-2 pointer-events-none w-8 h-8"></span><span class="text-xs pointer-events-none">Click to Embed Dashboard</span></div></div>`;
+                                }
+                            } else if (data.type === 'chart') {
+                                 // Reconstruct Chart HTML Structure
+                                 innerContent = `
+                                    <div class="element-content">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <h3 class="font-display font-semibold text-lg text-primary-blue m-0" contenteditable="true">${data.title || 'Sales Data'}</h3>
+                                            <button class="edit-chart-btn text-gray-400 hover:text-accent-teal p-1 rounded transition">
+                                                <span class="icon icon-edit w-4 h-4"></span>
+                                            </button>
+                                        </div>
+                                        <div class="chart-container h-32 bg-secondary-gray rounded-lg flex items-end p-2 space-x-2"></div>
+                                        <p class="text-xs text-text-dark/70 mt-2 text-center">Drop data source here</p>
+                                    </div>
+                                 `;
+                            } else if (data.type === 'shape') {
+                                 innerContent = `<div class="element-content"><span class="text-white font-bold" contenteditable="true">Tag</span></div>`;
+                                 el.style.borderRadius = '50%';
+                                 el.style.backgroundColor = '#2ECC71';
+                                 el.style.display = 'flex';
+                                 el.style.alignItems = 'center';
+                                 el.style.justifyContent = 'center';
+                            }
+                            
+                            // Set content
+                            if (!el.innerHTML) el.innerHTML = innerContent;
+                            
+                            // Re-attach listeners
+                            addCloseButton(el);
+                            if (data.type === 'table') setupTableInteractions(el);
+                            if (data.type === 'reference_list') setupReferenceListInteractions(el);
+                            if (data.type === 'image') window.setupImageInteractions(el);
+                            if (data.type === 'bi_embed') window.setupBIInteractions(el);
+                            if (data.type === 'chart') {
+                                window.setupChartInteractions(el);
+                                // If chart has config/source, re-render it
+                                if (data.chartSource && data.chartConfig) {
+                                    renderChartFromData(el, JSON.parse(data.chartSource), JSON.parse(data.chartConfig));
+                                } else if (data.chartSource) {
+                                    renderChartFromData(el, JSON.parse(data.chartSource));
+                                }
+                            }
+
+                            document.getElementById('canvas-area').appendChild(el);
+                        });
+                        
+                        projectFileInput.value = ''; // Reset
+                        
+                    } catch (err) {
+                        console.error("Failed to load project:", err);
+                        alert("Invalid project file.");
+                    }
+                };
+                reader.readAsText(file);
+            });
+            
+            // --- SAVE PDF Logic ---
+            const btnSave = document.getElementById('btn-save');
+            if (btnSave) {
+                btnSave.addEventListener('click', async () => {
+                    const { jsPDF } = window.jspdf;
+                    const originalText = btnSave.innerHTML;
+                    btnSave.innerHTML = '<span class="icon icon-save mr-2 text-text-light"></span> Saving...';
+                    
+                    try {
+                        const elements = document.querySelectorAll('.canvas-element');
+                        if (elements.length === 0) {
+                            alert("No elements to save!");
+                            btnSave.innerHTML = originalText;
+                            return;
+                        }
+
+                        let minX = Infinity, minY = Infinity;
+                        let maxX = -Infinity, maxY = -Infinity;
+
+                        elements.forEach(el => {
+                            const left = el.offsetLeft;
+                            const top = el.offsetTop;
+                            const right = left + el.offsetWidth;
+                            const bottom = top + el.offsetHeight;
+
+                            if (left < minX) minX = left;
+                            if (top < minY) minY = top;
+                            if (right > maxX) maxX = right;
+                            if (bottom > maxY) maxY = bottom;
+                        });
+
+                        const padding = 50;
+                        minX = Math.max(0, minX - padding);
+                        minY = Math.max(0, minY - padding);
+                        const width = (maxX - minX) + (padding * 2);
+                        const height = (maxY - minY) + (padding * 2);
+
+                        const canvas = await html2canvas(canvasArea, {
+                            scale: 2,
+                            useCORS: true,
+                            backgroundColor: '#F8F9FB',
+                            x: minX,
+                            y: minY,
+                            width: width,
+                            height: height,
+                            scrollX: 0,
+                            scrollY: 0
+                        });
+                        
+                        const imgData = canvas.toDataURL('image/png');
+                        const orientation = width > height ? 'l' : 'p';
+                        
+                        const doc = new jsPDF({
+                            orientation: orientation,
+                            unit: 'px',
+                            format: [width, height] 
+                        });
+                        
+                        doc.addImage(imgData, 'PNG', 0, 0, width, height);
+                        doc.save('datalab-canvas.pdf');
+
+                    } catch (err) {
+                        console.error("PDF Save Failed", err);
+                        alert("Could not save PDF. Please try again.");
+                    } finally {
+                        btnSave.innerHTML = originalText;
+                    }
+                });
+            }
+
+            // --- HELPERS: Add Close Button ---
+            function addCloseButton(el) {
+                el.classList.add('group');
+                const btn = document.createElement('button');
+                btn.className = 'absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full text-text-dark/40 hover:text-danger-red hover:bg-danger-bg transition-all opacity-0 group-hover:opacity-100 z-50 cursor-pointer';
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                btn.title = "Remove Element";
+                btn.addEventListener('mousedown', (e) => e.stopPropagation());
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    el.style.transition = "all 0.2s ease";
+                    el.style.opacity = "0";
+                    el.style.transform = "scale(0.9)";
+                    setTimeout(() => el.remove(), 200);
+                });
+                el.appendChild(btn);
+            }
+
+            document.querySelectorAll('.canvas-element').forEach(addCloseButton);
+
+            // --- DATA SOURCE LOGIC (New Feature) ---
+            const btnUploadCsv = document.getElementById('btn-upload-csv');
+            const btnConnectApi = document.getElementById('btn-connect-api');
+            const csvInput = document.getElementById('csv-input');
+            const dataSourceList = document.getElementById('data-source-list');
+
+            // 1. Trigger File Input
+            btnUploadCsv.addEventListener('click', () => csvInput.click());
+
+            // 2. Handle API Button (Mock)
+            btnConnectApi.addEventListener('click', () => {
+                const apiName = prompt("Enter API Name (e.g., Stripe, Google Analytics):", "External API");
+                if(apiName) {
+                    addDataSourceToList(apiName, "API Connection", "api");
+                }
+            });
+
+            // 3. Handle CSV Upload
+            csvInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const text = event.target.result;
+                        const rows = text.split('\n');
+                        const rowCount = rows.length;
+                        const fileName = file.name.replace('.csv', '');
+                        const listItem = addDataSourceToList(fileName, `${rowCount} rows • CSV`, "csv");
+                        
+                        const headers = rows[0].split(',');
+                        const dataRows = rows.slice(1).filter(r => r.trim() !== '');
+                        // Store ALL rows (up to a limit for safety)
+                        const previewData = dataRows.slice(0, 1000).map(r => r.split(','));
+                        
+                        listItem.dataset.csvHeaders = JSON.stringify(headers);
+                        listItem.dataset.csvPreview = JSON.stringify(previewData);
+                        
+                        let numericColIndex = -1;
+                        if (dataRows.length > 0) {
+                             const firstRowParts = dataRows[0].split(',');
+                             for(let i=0; i<firstRowParts.length; i++) {
+                                 if(!isNaN(parseFloat(firstRowParts[i]))) {
+                                     numericColIndex = i;
+                                     break;
+                                 }
+                             }
+                        }
+                        
+                        if (numericColIndex !== -1) {
+                            const chartValues = dataRows.slice(0, 10).map(r => parseFloat(r.split(',')[numericColIndex]));
+                            listItem.dataset.chartValues = JSON.stringify(chartValues);
+                        } else {
+                            listItem.dataset.chartValues = JSON.stringify([10, 25, 40, 30, 55, 20]);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+
+            function addDataSourceToList(name, meta, type) {
+                const li = document.createElement('li');
+                li.className = 'p-2 rounded bg-element-bg border border-element-border shadow-sm cursor-grab active:cursor-grabbing hover:border-accent-teal transition-colors flex items-center group relative pr-8';
+                li.draggable = true;
+                li.dataset.type = type === 'api' ? 'datasource_api' : 'datasource_csv';
+                li.dataset.name = name;
+                
+                const iconClass = type === 'api' ? 'icon-api' : 'icon-csv';
+                
+                li.innerHTML = `
+                    <span class="icon ${iconClass} text-accent-teal w-4 h-4 mr-2"></span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-text-dark truncate">${name}</p>
+                        <p class="text-[10px] text-text-dark/50">${meta}</p>
+                    </div>
+                    <button class="delete-source-btn absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-danger-red opacity-0 group-hover:opacity-100 transition-opacity" title="Delete Source">
+                        <span class="icon icon-trash w-3 h-3"></span>
+                    </button>
+                `;
+                
+                // Add Delete Listener
+                const delBtn = li.querySelector('.delete-source-btn');
+                delBtn.addEventListener('mousedown', (e) => e.stopPropagation()); // Prevent drag start
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if(confirm(`Delete data source "${name}"?`)) {
+                        li.remove();
+                    }
+                });
+
+                li.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('type', li.dataset.type);
+                    e.dataTransfer.setData('name', li.dataset.name);
+                    if(li.dataset.csvHeaders) {
+                        e.dataTransfer.setData('headers', li.dataset.csvHeaders);
+                        e.dataTransfer.setData('preview', li.dataset.csvPreview);
+                    }
+                    if(li.dataset.chartValues) {
+                        e.dataTransfer.setData('chartValues', li.dataset.chartValues);
+                    }
+                    e.dataTransfer.effectAllowed = 'copy';
+                });
+
+                dataSourceList.appendChild(li);
+                return li;
+            }
+
+            // --- DRAG & DROP LOGIC ---
+            // Helper for dimensions
+            function getElementDimensions(type) {
+                let w = 200, h = 150;
+                switch(type) {
+                    case 'text': w = 300; h = 150; break;
+                    case 'image': w = 200; h = 150; break;
+                    case 'chart': w = 500; h = 300; break; // Make chart bigger by default
+                    case 'table': w = 400; h = 200; break;
+                    case 'code': w = 350; h = 120; break;
+                    case 'link': w = 250; h = 100; break;
+                    case 'reference_list': w = 300; h = 220; break;
+                    case 'bi_embed': w = 500; h = 350; break;
+                    case 'shape': w = 120; h = 120; break;
+                    // Data sources dimensions handled inside createNewElement usually, but if we drag them...
+                    case 'datasource_csv': w = 450; h = 300; break;
+                    case 'datasource_api': w = 300; h = 150; break;
+                    case 'datasource_mock': w = 400; h = 200; break;
+                }
+                return { w, h };
+            }
+
+            // Custom Drag Logic for Toolbox
+            const toolboxItems = document.querySelectorAll('.toolbox-item');
+            let dragGhost = null;
+            let currentDragType = null;
+
+            toolboxItems.forEach(item => {
+                // Remove HTML5 draggable
+                item.removeAttribute('draggable');
+                
+                item.addEventListener('mousedown', (e) => {
+                    if(e.button !== 0) return; // Only left click
+                    e.preventDefault(); // Prevent text selection
+                    
+                    currentDragType = item.dataset.type;
+                    const { w, h } = getElementDimensions(currentDragType);
+                    
+                    // Create Ghost
+                    dragGhost = document.createElement('div');
+                    dragGhost.classList.add('fixed', 'bg-white', 'border-2', 'border-accent-teal', 'shadow-2xl', 'z-[9999]', 'rounded-lg', 'flex', 'items-center', 'justify-center', 'opacity-90', 'pointer-events-none');
+                    dragGhost.style.width = `${w}px`;
+                    dragGhost.style.height = `${h}px`;
+                    
+                    // Content for ghost (simplified)
+                    dragGhost.innerHTML = `<span class="text-accent-teal font-bold text-sm">${item.querySelector('span.text-sm').innerText}</span>`;
+                    
+                    document.body.appendChild(dragGhost);
+                    
+                    // Initial positioning (center on mouse)
+                    updateGhostPosition(e.clientX, e.clientY, w, h);
+                    
+                    // Attach listeners
+                    document.addEventListener('mousemove', onDragMove);
+                    document.addEventListener('mouseup', onDragEnd);
+                });
+            });
+
+            function updateGhostPosition(mouseX, mouseY, w, h) {
+                if(dragGhost) {
+                    dragGhost.style.left = `${mouseX - w/2}px`;
+                    dragGhost.style.top = `${mouseY - h/2}px`;
+                }
+            }
+
+            function onDragMove(e) {
+                if(!dragGhost) return;
+                const { w, h } = getElementDimensions(currentDragType);
+                updateGhostPosition(e.clientX, e.clientY, w, h);
+            }
+
+            function onDragEnd(e) {
+                // Clean up
+                if(dragGhost) {
+                    dragGhost.remove();
+                    dragGhost = null;
+                }
+                document.removeEventListener('mousemove', onDragMove);
+                document.removeEventListener('mouseup', onDragEnd);
+                
+                // Check if dropped on canvas
+                const rect = canvasArea.getBoundingClientRect();
+                if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                    e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                    
+                    // Calculate relative position centered on mouse drop
+                    const { w, h } = getElementDimensions(currentDragType);
+                    const mouseRelX = e.clientX - rect.left;
+                    const mouseRelY = e.clientY - rect.top;
+                    
+                    // Top-left position relative to canvas content
+                    const finalX = mouseRelX + canvasArea.scrollLeft - (w/2);
+                    const finalY = mouseRelY + canvasArea.scrollTop - (h/2);
+                    
+                    createNewElement(currentDragType, finalX, finalY);
+                }
+                
+                currentDragType = null;
+            }
+            
+            // Standard DnD for Data Sources (Keep as is)
+            const existingSources = dataSourceList.querySelectorAll('li');
+            existingSources.forEach(item => {
+                // Add Delete Logic to existing items
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-source-btn absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-danger-red opacity-0 group-hover:opacity-100 transition-opacity';
+                delBtn.title = "Delete Source";
+                delBtn.innerHTML = '<span class="icon icon-trash w-3 h-3"></span>';
+                
+                // Ensure parent has relative positioning
+                item.classList.add('relative', 'pr-8');
+                item.appendChild(delBtn);
+
+                delBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const name = item.dataset.name;
+                    if(confirm(`Delete data source "${name}"?`)) {
+                        item.remove();
+                    }
+                });
+
+                item.addEventListener('dragstart', (e) => {
+                     e.dataTransfer.setData('type', item.dataset.type);
+                     e.dataTransfer.setData('name', item.dataset.name);
+                     // Add mock data for the static item
+                     if(item.dataset.name === 'Sample_Sales_Q3') {
+                         e.dataTransfer.setData('headers', '["Product","Sales","Region"]');
+                         e.dataTransfer.setData('preview', '[["Widget A","1200","East"],["Widget B","850","West"],["Widget C","1100","East"],["Widget D","950","South"]]');
+                         e.dataTransfer.setData('chartValues', '[1200, 850, 1100, 950, 500, 1300]');
+                     }
+                     e.dataTransfer.effectAllowed = 'copy';
+                });
+            });
+
+
+            canvasArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                
+                const target = e.target.closest('.canvas-element');
+                if (target) {
+                    const type = target.dataset.elementType || (target.querySelector('.chart-container') ? 'chart' : 'unknown');
+                    if (type === 'chart' || type === 'table' || type === 'datasource_csv') {
+                         target.classList.add('drag-over');
+                    }
+                }
+            });
+            
+            canvasArea.addEventListener('dragleave', (e) => {
+                const target = e.target.closest('.canvas-element');
+                if (target) target.classList.remove('drag-over');
+            });
+
+            canvasArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                
+                // Remove visual cues
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+                const type = e.dataTransfer.getData('type');
+                
+                // 1. Check if dropped onto an EXISTING element (Connect Logic)
+                const targetElement = e.target.closest('.canvas-element');
+                
+                if (targetElement && (type === 'datasource_csv' || type === 'datasource_mock')) {
+                    const name = e.dataTransfer.getData('name');
+                    const chartValues = JSON.parse(e.dataTransfer.getData('chartValues') || '[]');
+                    const headers = JSON.parse(e.dataTransfer.getData('headers') || '[]');
+                    const preview = JSON.parse(e.dataTransfer.getData('preview') || '[]');
+
+                    const targetType = targetElement.dataset.elementType || (targetElement.querySelector('.chart-container') ? 'chart' : 'unknown');
+                    
+                    if (targetType === 'chart') {
+                        // Update Chart
+                        const title = targetElement.querySelector('h3');
+                        if(title) title.innerText = `Chart: ${name}`;
+                        
+                        // Save data to element for later editing
+                        targetElement.dataset.chartSource = JSON.stringify({ headers, data: preview });
+                        
+                        // Default Visualization (First Text Col vs First Num Col)
+                        renderChartFromData(targetElement, { headers, data: preview });
+                        
+                        // Flash effect
+                        targetElement.style.animation = "pulse 0.5s";
+                        setTimeout(() => targetElement.style.animation = "", 500);
+                        return; // Stop here, don't create new element
+                    }
+                    
+                    // Logic for updating tables if needed can go here...
+                }
+
+
+                // 2. Drop on empty space (Only for HTML5 DnD sources like CSV files or Data Sources list)
+                if (type && !currentDragType) { // Ensure we don't double drop if custom drag is active (though custom drag uses mouseup)
+                    const rect = canvasArea.getBoundingClientRect();
+                    const x = e.clientX - rect.left + canvasArea.scrollLeft;
+                    const y = e.clientY - rect.top + canvasArea.scrollTop;
+                    
+                    const name = e.dataTransfer.getData('name');
+                    const headersStr = e.dataTransfer.getData('headers');
+                    const previewStr = e.dataTransfer.getData('preview');
+                    const chartValuesStr = e.dataTransfer.getData('chartValues');
+                    
+                    createNewElement(type, x, y, { 
+                        name, 
+                        headers: headersStr ? JSON.parse(headersStr) : null, 
+                        preview: previewStr ? JSON.parse(previewStr) : null,
+                        chartValues: chartValuesStr ? JSON.parse(chartValuesStr) : null
+                    });
+                }
+            });
+
+            // --- HELPER FUNCTIONS ---
+            
+            window.setupImageInteractions = function(el) {
+                 const imgContainer = el.querySelector('.element-content > div');
+                 if(imgContainer) {
+                     imgContainer.addEventListener('click', (e) => {
+                         if (e.target.closest('.delete-img-btn')) {
+                             e.stopPropagation();
+                             imgContainer.className = "w-full h-full bg-secondary-gray flex flex-col items-center justify-center rounded text-text-dark/50 hover:bg-secondary-gray/80 transition-colors";
+                             imgContainer.innerHTML = `<span class="icon icon-image mb-2 pointer-events-none"></span><span class="text-xs pointer-events-none">Click to Upload Image</span>`;
+                             return;
+                         }
+                         if (imgContainer.querySelector('img')) return;
+                         if(!e.target.isContentEditable) {
+                             currentImageTarget = imgContainer;
+                             document.getElementById('img-file-input').click(); 
+                         }
+                     });
+                     imgContainer.style.cursor = 'pointer';
+                 }
+            }
+
+            window.setupBIInteractions = function(el) {
+                const biContainer = el.querySelector('.element-content > div');
+                if (biContainer) {
+                    biContainer.addEventListener('click', (e) => {
+                        if (biContainer.querySelector('iframe')) return;
+                        if (e.target.isContentEditable) return;
+                        
+                        currentBITarget = biContainer;
+                        document.getElementById('bi-code-input').value = '';
+                        document.getElementById('embed-bi-modal').classList.add('active');
+                    });
+                }
+            };
+            
+            // Function to render chart based on config
+            function renderChartFromData(el, sourceData, config = {}) {
+                const chartContainer = el.querySelector('.chart-container');
+                const title = el.querySelector('h3');
+                const subtitle = el.querySelector('p');
+                
+                if (!sourceData || !sourceData.headers || !sourceData.data) {
+                    if(subtitle) subtitle.innerText = "No data source connected";
+                    return;
+                }
+                
+                const headers = sourceData.headers;
+                const rows = sourceData.data; // Array of arrays
+                
+                // Determine Columns
+                let labelIndex = -1;
+                let valIndex = -1;
+
+                if (config.xCol) labelIndex = headers.indexOf(config.xCol);
+                if (config.yCol) valIndex = headers.indexOf(config.yCol);
+                
+                // Auto-detect if not configured
+                if (labelIndex === -1 || valIndex === -1) {
+                     for(let i=0; i<headers.length; i++) {
+                        let isNumeric = true;
+                        let sampleCount = 0;
+                        for(let r=0; r < Math.min(rows.length, 5); r++) {
+                            const val = rows[r][i];
+                            if (!val) continue;
+                            sampleCount++;
+                            if(isNaN(parseFloat(val.replace(/[^0-9.-]/g, '')))) {
+                                isNumeric = false;
+                                break; 
+                            }
+                        }
+                        if(sampleCount === 0) isNumeric = false;
+
+                        if (!isNumeric && labelIndex === -1) labelIndex = i;
+                        else if (isNumeric && valIndex === -1) valIndex = i;
+                    }
+                }
+                
+                // Fallback indices
+                if (labelIndex === -1) labelIndex = 0;
+                if (valIndex === -1) valIndex = 1;
+
+                // Aggregate Data
+                const pivotMap = new Map();
+                rows.forEach(row => {
+                    const label = row[labelIndex] || "Unknown";
+                    const rawVal = row[valIndex];
+                    const val = parseFloat((rawVal || "").replace(/[^0-9.-]/g, ''));
+                    
+                    if (!isNaN(val)) {
+                        pivotMap.set(label, (pivotMap.get(label) || 0) + val);
+                    }
+                });
+                
+                let dataPoints = Array.from(pivotMap, ([label, val]) => ({ label, val }));
+                
+                // SORTING LOGIC
+                const sortOrder = config.sort || 'val_desc';
+                if (sortOrder === 'val_desc') {
+                    dataPoints.sort((a, b) => b.val - a.val);
+                } else if (sortOrder === 'val_asc') {
+                    dataPoints.sort((a, b) => a.val - b.val);
+                } else if (sortOrder === 'label_asc') {
+                    dataPoints.sort((a, b) => a.label.localeCompare(b.label));
+                } else if (sortOrder === 'label_desc') {
+                    dataPoints.sort((a, b) => b.label.localeCompare(a.label));
+                }
+
+                // Highlight Count
+                const highlightCount = config.highlightCount || 3;
+                const displayData = dataPoints.slice(0, 15); // Top 15
+                
+                // --- RENDER ---
+                if (chartContainer) {
+                    chartContainer.innerHTML = '';
+                    // Set relative positioning for absolute children (SVG)
+                    chartContainer.style.position = 'relative';
+
+                    if (displayData.length > 0) {
+                        const maxVal = Math.max(...displayData.map(d => d.val)) || 100;
+                        const barColor = config.color || '#2ECC71'; 
+                        const highlightColor = config.highlightColor || '#27AE60'; 
+
+                        // 1. Draw SVG Line (for Line or Combo) - Background Layer
+                        if ((config.type === 'line' || config.type === 'combo') && displayData.length > 1) {
+                            const lineColor = config.type === 'combo' ? '#34495E' : barColor;
+                            
+                            // Calculate points for SVG Polyline
+                            // Map index to X percentage (centered in slot), Value to Y percentage
+                            const points = displayData.map((d, i) => {
+                                const x = ((i + 0.5) / displayData.length) * 100;
+                                const heightPct = Math.max(5, (d.val / maxVal) * 100);
+                                const y = 100 - heightPct; 
+                                return `${x},${y}`;
+                            }).join(' ');
+
+                            const svgNS = "http://www.w3.org/2000/svg";
+                            const svg = document.createElementNS(svgNS, "svg");
+                            svg.setAttribute("class", "absolute inset-0 w-full h-full pointer-events-none z-10");
+                            svg.setAttribute("viewBox", "0 0 100 100");
+                            svg.setAttribute("preserveAspectRatio", "none"); // Stretch to fit
+                            
+                            const polyline = document.createElementNS(svgNS, "polyline");
+                            polyline.setAttribute("points", points);
+                            polyline.setAttribute("fill", "none");
+                            polyline.setAttribute("stroke", lineColor);
+                            polyline.setAttribute("stroke-width", "2"); 
+                            polyline.setAttribute("vector-effect", "non-scaling-stroke"); // Keep line thickness constant
+                            
+                            svg.appendChild(polyline);
+                            chartContainer.appendChild(svg);
+                        }
+
+                        // 2. Draw Bars/Wrappers - Foreground Layer
+                        const flexContainer = document.createElement('div');
+                        flexContainer.className = "w-full h-full flex items-end space-x-2 relative z-0"; // z-0 to be under SVG visually but clickable
+                        
+                        displayData.forEach((d, idx) => {
+                            const heightPct = Math.max(5, (d.val / maxVal) * 100); 
+                            const isHighlight = idx < highlightCount && config.highlightColor;
+                            const finalColor = isHighlight ? highlightColor : barColor;
+
+                            const barWrapper = document.createElement('div');
+                            barWrapper.className = 'flex flex-col items-center justify-end h-full flex-1 min-w-[20px] group relative';
+                            
+                            // Visual Element (Bar or Invisible Hitbox for Line)
+                            const bar = document.createElement('div');
+                            bar.className = 'w-full rounded-t transition-all duration-500 relative';
+                            
+                            if (config.type === 'line') {
+                                // Line Chart: Invisible bar for hitbox, but visible dot
+                                bar.style.backgroundColor = 'transparent';
+                                bar.style.height = `${heightPct}%`;
+                                
+                                // Dot
+                                const dot = document.createElement('div');
+                                dot.className = 'absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-white shadow-sm z-20';
+                                dot.style.backgroundColor = finalColor;
+                                bar.appendChild(dot);
+                            } else {
+                                // Bar or Combo: Visible Bar
+                                bar.style.backgroundColor = finalColor;
+                                bar.style.height = `${heightPct}%`;
+                            }
+                            
+                            // Tooltip / Value Label
+                            const tooltipClass = config.showValues ? 'opacity-100' : 'opacity-0 group-hover:opacity-100';
+                            let bubbleContent = config.showValues ? `${d.val.toLocaleString()}` : `<span class="font-bold">${d.label}</span><br>${d.val.toLocaleString()}`;
+                            
+                            bar.innerHTML += `
+                                <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-[10px] bg-primary-blue text-white px-2 py-1 rounded ${tooltipClass} whitespace-nowrap z-30 pointer-events-none shadow-lg transition-opacity">
+                                    ${bubbleContent}
+                                </div>
+                            `;
+
+                            barWrapper.appendChild(bar);
+                            
+                            // X-Axis Label
+                            const labelDiv = document.createElement('div');
+                            labelDiv.className = 'text-[9px] text-text-dark/70 mt-1 truncate w-full text-center group-hover:text-primary-blue';
+                            labelDiv.innerText = d.label;
+                            barWrapper.appendChild(labelDiv);
+
+                            flexContainer.appendChild(barWrapper);
+                        });
+                        
+                        chartContainer.appendChild(flexContainer);
+
+                        if(subtitle) subtitle.innerText = `Showing ${headers[valIndex]} by ${headers[labelIndex]}`;
+                    } else {
+                        chartContainer.innerHTML = '<p class="text-xs text-text-dark/50 w-full text-center self-center">No valid data found.</p>';
+                    }
+                }
+            }
+
+            // Define setupChartInteractions logic
+             window.setupChartInteractions = function(el) {
+                const editBtn = el.querySelector('.edit-chart-btn');
+                if (editBtn) {
+                    editBtn.addEventListener('mousedown', (e) => e.stopPropagation()); // Prevent drag
+                    editBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        // Open Editor Modal
+                        const chartSource = el.dataset.chartSource ? JSON.parse(el.dataset.chartSource) : null;
+                        
+                        if (!chartSource) {
+                            alert("Please drop a Data Source (CSV) onto this chart first.");
+                            return;
+                        }
+                        
+                        // Populate Modal
+                        const modal = document.getElementById('chart-editor-modal');
+                        const xSelect = document.getElementById('chart-x-select');
+                        const ySelect = document.getElementById('chart-y-select');
+                        const sortSelect = document.getElementById('chart-sort-select'); // NEW
+                        const typeSelect = document.getElementById('chart-type-select');
+                        const colorInput = document.getElementById('chart-color-input');
+                        const highlightInput = document.getElementById('chart-highlight-input');
+                        const highlightCountInput = document.getElementById('chart-highlight-count');
+                        const showValuesCheckbox = document.getElementById('chart-show-values');
+
+                        // Clear options
+                        xSelect.innerHTML = '';
+                        ySelect.innerHTML = '';
+                        
+                        chartSource.headers.forEach(h => {
+                            const optX = document.createElement('option'); optX.value = h; optX.innerText = h;
+                            const optY = document.createElement('option'); optY.value = h; optY.innerText = h;
+                            xSelect.appendChild(optX);
+                            ySelect.appendChild(optY);
+                        });
+                        
+                         // Load saved config
+                        const savedConfig = el.dataset.chartConfig ? JSON.parse(el.dataset.chartConfig) : {};
+
+                        // Set values if they exist, otherwise let select pick first or default
+                        if (savedConfig.xCol) xSelect.value = savedConfig.xCol;
+                        if (savedConfig.yCol) ySelect.value = savedConfig.yCol;
+                        if (savedConfig.sort) sortSelect.value = savedConfig.sort; // NEW
+                        if (savedConfig.type) typeSelect.value = savedConfig.type;
+                        if (savedConfig.color) colorInput.value = savedConfig.color;
+                        if (savedConfig.highlightColor) highlightInput.value = savedConfig.highlightColor;
+                        
+                        // Load highlight count, default to 3
+                        if (savedConfig.highlightCount) highlightCountInput.value = savedConfig.highlightCount;
+                        else highlightCountInput.value = 3;
+
+                        showValuesCheckbox.checked = savedConfig.showValues || false;
+
+                        // Store current element target in global variable
+                        window.currentChartElement = el;
+                        modal.classList.add('active');
+                    });
+                }
+            };
+
+
+            // --- GLOBAL MODAL SETUP (Run once) ---
+            const addLinkModal = document.getElementById('add-link-modal');
+            const deleteLinkModal = document.getElementById('delete-link-modal');
+            const embedBIModal = document.getElementById('embed-bi-modal');
+            const chartEditorModal = document.getElementById('chart-editor-modal');
+            
+            // Link Modal Elements
+            const linkNameInput = document.getElementById('link-name-input');
+            const linkUrlInput = document.getElementById('link-url-input');
+            const cancelLinkBtn = document.getElementById('cancel-link-btn');
+            const confirmLinkBtn = document.getElementById('confirm-link-btn');
+
+            // Delete Modal Elements
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            
+            // BI Modal Elements
+            const biCodeInput = document.getElementById('bi-code-input');
+            const cancelBIBtn = document.getElementById('cancel-bi-btn');
+            const confirmBIBtn = document.getElementById('confirm-bi-btn');
+            
+            // Chart Editor Elements
+            const cancelChartBtn = document.getElementById('cancel-chart-btn');
+            const confirmChartBtn = document.getElementById('confirm-chart-btn');
+
+            // Image Input Element
+            const imgFileInput = document.getElementById('img-file-input');
+
+            // State variables
+            let currentListTarget = null; 
+            let itemToDelete = null;
+            let currentImageTarget = null;
+            let currentBITarget = null;
+            window.currentChartElement = null; // Global for chart editor
+
+            // --- LINK MODAL EVENTS ---
+            cancelLinkBtn.addEventListener('click', () => {
+                addLinkModal.classList.remove('active');
+                currentListTarget = null;
+            });
+            
+            confirmLinkBtn.addEventListener('click', () => {
+                if (!currentListTarget) return;
+                
+                const name = linkNameInput.value.trim();
+                let url = linkUrlInput.value.trim();
+                
+                if (!name || !url) {
+                    alert("Please enter both a name and a URL.");
+                    return;
+                }
+                
+                if (!url.match(/^https?:\/\//)) {
+                    url = 'https://' + url;
+                }
+
+                const li = document.createElement('li');
+                li.className = "mb-1";
+                li.innerHTML = `<a href="${url}" target="_blank" class="text-accent-teal hover:underline cursor-alias">${name}</a>`;
+                
+                // Add delete button logic directly here or via helper if complex
+                // We'll reimplement addDeleteButton logic inline for simplicity or define it in scope
+                addDeleteButtonLogic(li);
+
+                currentListTarget.appendChild(li);
+                
+                addLinkModal.classList.remove('active');
+                currentListTarget = null;
+            });
+
+            addLinkModal.addEventListener('click', (e) => {
+                if (e.target === addLinkModal) {
+                    addLinkModal.classList.remove('active');
+                    currentListTarget = null;
+                }
+            });
+
+            // --- DELETE MODAL EVENTS ---
+            cancelDeleteBtn.addEventListener('click', () => {
+                deleteLinkModal.classList.remove('active');
+                itemToDelete = null;
+            });
+
+            confirmDeleteBtn.addEventListener('click', () => {
+                if (itemToDelete) {
+                    itemToDelete.remove();
+                    deleteLinkModal.classList.remove('active');
+                    itemToDelete = null;
+                }
+            });
+
+            deleteLinkModal.addEventListener('click', (e) => {
+                if (e.target === deleteLinkModal) {
+                    deleteLinkModal.classList.remove('active');
+                    itemToDelete = null;
+                }
+            });
+
+            // --- BI MODAL EVENTS ---
+            cancelBIBtn.addEventListener('click', () => {
+                embedBIModal.classList.remove('active');
+                currentBITarget = null;
+            });
+
+            confirmBIBtn.addEventListener('click', () => {
+                if (!currentBITarget) return;
+                const code = biCodeInput.value.trim();
+                
+                let src = '';
+                const srcMatch = code.match(/src=["'](.*?)["']/);
+                if (srcMatch && srcMatch[1]) {
+                    src = srcMatch[1];
+                } else if (code.match(/^https?:\/\//)) {
+                    src = code;
+                }
+
+                if (src) {
+                    currentBITarget.innerHTML = `<iframe src="${src}" class="w-full h-full border-none" allowfullscreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>`;
+                    currentBITarget.className = "w-full h-full"; 
+                } else {
+                    alert("Invalid embed code or URL.");
+                    return; 
+                }
+                
+                embedBIModal.classList.remove('active');
+                currentBITarget = null;
+            });
+            
+            embedBIModal.addEventListener('click', (e) => {
+                if(e.target === embedBIModal) {
+                    embedBIModal.classList.remove('active');
+                    currentBITarget = null;
+                }
+            });
+            
+            // --- CHART EDITOR EVENTS ---
+            cancelChartBtn.addEventListener('click', () => {
+                chartEditorModal.classList.remove('active');
+                window.currentChartElement = null;
+            });
+
+            confirmChartBtn.addEventListener('click', () => {
+                if (window.currentChartElement) {
+                    const xCol = document.getElementById('chart-x-select').value;
+                    const yCol = document.getElementById('chart-y-select').value;
+                    const sort = document.getElementById('chart-sort-select').value; // NEW
+                    const color = document.getElementById('chart-color-input').value;
+                    const highlightColor = document.getElementById('chart-highlight-input').value;
+                    const highlightCount = parseInt(document.getElementById('chart-highlight-count').value) || 3;
+                    const type = document.getElementById('chart-type-select').value;
+                    const showValues = document.getElementById('chart-show-values').checked;
+                    
+                    const sourceData = JSON.parse(window.currentChartElement.dataset.chartSource);
+                    const config = { xCol, yCol, sort, color, highlightColor, highlightCount, type, showValues }; // Added sort
+                    
+                    // Save config
+                    window.currentChartElement.dataset.chartConfig = JSON.stringify(config);
+                    
+                    renderChartFromData(window.currentChartElement, sourceData, config);
+                    
+                    chartEditorModal.classList.remove('active');
+                    window.currentChartElement = null;
+                }
+            });
+            
+            chartEditorModal.addEventListener('click', (e) => {
+                if(e.target === chartEditorModal) {
+                    chartEditorModal.classList.remove('active');
+                    window.currentChartElement = null;
+                }
+            });
+
+
+            // --- IMAGE FILE INPUT EVENTS ---
+            imgFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if(file && currentImageTarget) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        currentImageTarget.innerHTML = `
+                            <div class="relative w-full h-full group">
+                                <img src="${event.target.result}" class="w-full h-full object-cover rounded pointer-events-none" alt="Uploaded Image">
+                                <button class="delete-img-btn absolute bottom-2 right-2 bg-white/90 p-1.5 rounded-full shadow-md text-danger-red hover:bg-white hover:text-red-600 transition-all opacity-0 group-hover:opacity-100 z-10" title="Remove Image">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        `;
+                        currentImageTarget.className = "w-full h-full"; 
+                        currentImageTarget = null;
+                        imgFileInput.value = '';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // --- HELPER FUNCTIONS FOR ELEMENTS ---
+
+            function addDeleteButtonLogic(li) {
+                 if (li.querySelector('.delete-btn')) return;
+
+                li.classList.add('group', 'relative', 'pr-6'); 
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-danger-red opacity-0 group-hover:opacity-100 transition-opacity p-1';
+                delBtn.innerHTML = '<span class="icon icon-trash w-3 h-3"></span>';
+                delBtn.title = "Delete Link";
+                
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); 
+                    itemToDelete = li;
+                    deleteLinkModal.classList.add('active');
+                });
+                
+                li.appendChild(delBtn);
+            }
+
+            function setupReferenceListInteractions(el) {
+                const btn = el.querySelector('.add-link-btn');
+                const list = el.querySelector('ul');
+
+                if (btn && list) {
+                    btn.addEventListener('mousedown', (e) => e.stopPropagation());
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        currentListTarget = list;
+                        linkNameInput.value = '';
+                        linkUrlInput.value = '';
+                        addLinkModal.classList.add('active');
+                        linkNameInput.focus();
+                    });
+
+                    Array.from(list.children).forEach(li => addDeleteButtonLogic(li));
+                }
+            }
+
+
+            // --- TABLE INTERACTION HELPERS (Sorting, Visibility & Resizing) ---
+            function setupTableInteractions(wrapperElement) {
+                const table = wrapperElement.querySelector('table');
+                if (!table) return;
+
+                const headers = Array.from(table.querySelectorAll('thead th'));
+                const tbody = table.querySelector('tbody');
+                
+                // 1. Sorting & Resizing Logic
+                headers.forEach((th, index) => {
+                    if (!th.querySelector('.sort-icon')) {
+                        const icon = document.createElement('span');
+                        icon.className = 'sort-icon';
+                        th.appendChild(icon);
+                    }
+                    
+                    if (!th.querySelector('.resizer')) {
+                        const resizer = document.createElement('div');
+                        resizer.className = 'resizer';
+                        th.appendChild(resizer);
+                        
+                        let startX, startWidth;
+                        
+                        resizer.addEventListener('mousedown', (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            startX = e.pageX;
+                            startWidth = th.offsetWidth;
+                            resizer.classList.add('resizing');
+                            
+                            const onMouseMove = (moveEvent) => {
+                                const width = startWidth + (moveEvent.pageX - startX);
+                                th.style.width = `${width}px`;
+                                th.style.minWidth = `${width}px`; 
+                            };
+                            
+                            const onMouseUp = () => {
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                                resizer.classList.remove('resizing');
+                            };
+                            
+                            document.addEventListener('mousemove', onMouseMove);
+                            document.addEventListener('mouseup', onMouseUp);
+                        });
+                    }
+
+                    th.addEventListener('click', (e) => {
+                        if (e.target.classList.contains('resizer')) return;
+
+                        const rows = Array.from(tbody.querySelectorAll('tr'));
+                        const isAsc = th.classList.contains('asc');
+                        
+                        headers.forEach(h => {
+                            h.classList.remove('asc', 'desc');
+                            const icon = h.querySelector('.sort-icon');
+                            if(icon) {
+                                icon.style.opacity = '0.3';
+                                icon.style.transform = 'rotate(0deg)';
+                            }
+                        });
+
+                        const direction = isAsc ? -1 : 1;
+                        th.classList.toggle('asc', !isAsc);
+                        th.classList.toggle('desc', isAsc);
+                        
+                        const icon = th.querySelector('.sort-icon');
+                        if(icon) {
+                            icon.style.opacity = '1';
+                            icon.style.transform = isAsc ? 'rotate(180deg)' : 'rotate(0deg)';
+                        }
+
+                        rows.sort((rowA, rowB) => {
+                            const cellA = rowA.children[index].innerText.trim();
+                            const cellB = rowB.children[index].innerText.trim();
+
+                            const parseVal = (val) => {
+                                const numVal = val.replace(/,/g, ""); 
+                                if (numVal !== "" && !isNaN(Number(numVal))) {
+                                    return Number(numVal);
+                                }
+                                const dateVal = Date.parse(val);
+                                if (!isNaN(dateVal)) {
+                                    return dateVal;
+                                }
+                                return val.toLowerCase();
+                            };
+
+                            const valA = parseVal(cellA);
+                            const valB = parseVal(cellB);
+
+                            if (valA < valB) return -1 * direction;
+                            if (valA > valB) return 1 * direction;
+                            return 0;
+                        });
+
+                        tbody.innerHTML = '';
+                        rows.forEach(row => tbody.appendChild(row));
+                    });
+                });
+
+                // 2. Add Buttons to Header Action Area
+                const headerContainer = wrapperElement.querySelector('.table-header-container');
+                if (headerContainer && !headerContainer.querySelector('.table-actions')) {
+                    
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'table-actions flex items-center space-x-1';
+                    
+                    // NEW: Toggle Table/Chart View Function
+                    function toggleTableView(element, btn) {
+                        const tableContainer = element.querySelector('.overflow-x-auto');
+                        let chartContainer = element.querySelector('.chart-view-container');
+                        
+                        if (tableContainer.style.display !== 'none') {
+                            const table = tableContainer.querySelector('table');
+                            const rows = Array.from(table.querySelectorAll('tbody tr'));
+                            const headers = table.querySelectorAll('thead th');
+                            
+                            let labelColIndex = -1;
+                            let valColIndex = -1;
+                            
+                            for(let i=0; i<headers.length; i++) {
+                                if(headers[i].style.display !== 'none') {
+                                    labelColIndex = i;
+                                    break;
+                                }
+                            }
+                            
+                            const parseNumber = (str) => {
+                                if (!str) return NaN;
+                                const cleanStr = str.replace(/[^0-9.-]/g, '');
+                                return parseFloat(cleanStr);
+                            };
+
+                            for(let i=0; i<headers.length; i++) {
+                                if(i === labelColIndex) continue;
+                                if(headers[i].style.display !== 'none') {
+                                    let isNumericCol = false;
+                                    for(let r=0; r < Math.min(rows.length, 5); r++) {
+                                        const cellText = rows[r].children[i]?.innerText || "";
+                                        if(!isNaN(parseNumber(cellText))) {
+                                            isNumericCol = true;
+                                            break; 
+                                        }
+                                    }
+                                    if(isNumericCol) {
+                                        valColIndex = i;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (!chartContainer) {
+                                chartContainer = document.createElement('div');
+                                chartContainer.className = 'chart-view-container h-[calc(100%-2.5rem)] flex items-end p-4 space-x-2 bg-secondary-gray/10 rounded overflow-x-auto';
+                                element.appendChild(chartContainer);
+                            }
+                            
+                            chartContainer.innerHTML = ''; 
+                            
+                            if (labelColIndex !== -1 && valColIndex !== -1) {
+                                const pivotMap = new Map();
+
+                                rows.forEach(row => {
+                                    const labelCell = row.children[labelColIndex];
+                                    const valCell = row.children[valColIndex];
+                                    
+                                    if (!labelCell || !valCell) return;
+                                    if (labelCell.style.display === 'none' || valCell.style.display === 'none') return;
+                                    
+                                    let label = labelCell.innerText.trim();
+                                    let val = parseNumber(valCell.innerText);
+                                    
+                                    if (!isNaN(val)) {
+                                        if (pivotMap.has(label)) {
+                                            pivotMap.set(label, pivotMap.get(label) + val);
+                                        } else {
+                                            pivotMap.set(label, val);
+                                        }
+                                    }
+                                });
+
+                                let dataPoints = Array.from(pivotMap, ([label, val]) => ({ label, val }));
+                                dataPoints.sort((a, b) => b.val - a.val);
+                                const displayData = dataPoints.slice(0, 20);
+
+                                if (displayData.length > 0) {
+                                    const maxVal = Math.max(...displayData.map(d => d.val)) || 100;
+                                    displayData.forEach(d => {
+                                        const heightPct = Math.max(5, (d.val / maxVal) * 100); 
+                                        const barWrapper = document.createElement('div');
+                                        barWrapper.className = 'flex flex-col items-center justify-end h-full flex-1 min-w-[30px] group relative';
+                                        
+                                        const bar = document.createElement('div');
+                                        bar.className = 'w-full bg-accent-teal rounded-t hover:bg-accent-teal-dark transition-all duration-500 relative';
+                                        bar.style.height = `${heightPct}%`;
+                                        
+                                        bar.innerHTML = `
+                                            <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[10px] bg-primary-blue text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-20 pointer-events-none shadow-lg transition-opacity">
+                                                <span class="font-bold">${d.label}</span><br>
+                                                ${d.val.toLocaleString()}
+                                            </div>
+                                        `;
+                                        
+                                        const labelDiv = document.createElement('div');
+                                        labelDiv.className = 'text-[9px] text-text-dark/70 mt-1 truncate w-full text-center group-hover:text-primary-blue group-hover:font-semibold';
+                                        labelDiv.innerText = d.label;
+                                        
+                                        barWrapper.appendChild(bar);
+                                        barWrapper.appendChild(labelDiv);
+                                        chartContainer.appendChild(barWrapper);
+                                    });
+                                } else {
+                                    chartContainer.innerHTML = '<p class="text-xs text-text-dark/50 w-full text-center self-center">No numeric data to aggregate.</p>';
+                                }
+                            } else {
+                                chartContainer.innerHTML = '<p class="text-xs text-text-dark/50 w-full text-center self-center">Auto-plot failed.<br>Need 1 Text Column (Row) and 1 Number Column (Value).</p>';
+                            }
+
+                            tableContainer.style.display = 'none';
+                            chartContainer.style.display = 'flex';
+                            btn.innerHTML = '<span class="icon icon-table w-3 h-3 mr-1 text-primary-blue"></span> Table';
+                            btn.title = "Switch to Table View";
+                            
+                        } else {
+                            if(chartContainer) chartContainer.style.display = 'none';
+                            tableContainer.style.display = 'block';
+                            btn.innerHTML = '<span class="icon icon-graph-bar w-3 h-3 mr-1 text-primary-blue"></span> Chart';
+                            btn.title = "Automated Pivot Chart";
+                        }
+                    }
+
+                    // Add Chart Button logic
+                    let chartBtn = headerContainer.querySelector('button');
+                    if(chartBtn && chartBtn.title === "Switch View") {
+                         // Override if exists
+                    } else {
+                        chartBtn = document.createElement('button');
+                        chartBtn.className = 'text-[10px] bg-white border border-element-border text-text-dark px-2 py-1 rounded hover:bg-secondary-gray transition flex items-center';
+                        chartBtn.title = "Automated Pivot Chart";
+                        chartBtn.innerHTML = '<span class="icon icon-graph-bar w-3 h-3 mr-1 text-primary-blue"></span> Chart';
+                        actionsDiv.appendChild(chartBtn);
+                    }
+                    
+                    chartBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        toggleTableView(wrapperElement, chartBtn);
+                    };
+
+                    const btnCols = document.createElement('button');
+                    btnCols.className = 'btn-cols text-[10px] bg-white border border-element-border text-text-dark px-2 py-1 rounded hover:bg-secondary-gray transition flex items-center relative';
+                    btnCols.title = "Select Columns";
+                    btnCols.innerHTML = '<span class="icon icon-eye w-3 h-3 mr-1 text-primary-blue"></span> Cols';
+                    
+                    const menu = document.createElement('div');
+                    menu.className = 'col-menu';
+                    
+                    headers.forEach((th, idx) => {
+                        const label = document.createElement('label');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.checked = true;
+                        
+                        checkbox.addEventListener('change', (e) => {
+                            const isVisible = e.target.checked;
+                            th.style.display = isVisible ? '' : 'none';
+                            const rows = table.querySelectorAll('tbody tr');
+                            rows.forEach(row => {
+                                if(row.children[idx]) row.children[idx].style.display = isVisible ? '' : 'none';
+                            });
+                        });
+
+                        label.appendChild(checkbox);
+                        const cloneTh = th.cloneNode(true);
+                        const cleanText = cloneTh.firstChild ? cloneTh.firstChild.textContent : `Col ${idx+1}`;
+                        label.appendChild(document.createTextNode(cleanText.trim() || `Col ${idx+1}`));
+                        menu.appendChild(label);
+                    });
+
+                    btnCols.appendChild(menu);
+                    
+                    btnCols.addEventListener('click', (e) => {
+                        if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
+                            menu.classList.toggle('show');
+                        }
+                    });
+
+                    document.addEventListener('click', (e) => {
+                        if (!btnCols.contains(e.target)) {
+                            menu.classList.remove('show');
+                        }
+                    });
+
+                    actionsDiv.appendChild(btnCols);
+                    headerContainer.appendChild(actionsDiv);
+                }
+            }
+
+
+            function createNewElement(type, x, y, data = {}) {
+                const el = document.createElement('div');
+                el.className = 'canvas-element selected';
+                
+                // 1. Define dimensions first to calculate centering offset correctly
+                let w = 200, h = 150;
+                switch(type) {
+                    case 'text': w = 300; h = 150; break;
+                    case 'image': w = 200; h = 150; break;
+                    case 'chart': w = 300; h = 200; break;
+                    case 'table': w = 400; h = 200; break;
+                    case 'datasource_csv': w = 450; h = 300; break;
+                    case 'datasource_api': w = 300; h = 150; break;
+                    case 'datasource_mock': w = 400; h = 200; break;
+                    case 'code': w = 350; h = 120; break;
+                    case 'link': w = 250; h = 100; break;
+                    case 'reference_list': w = 300; h = 220; break;
+                    case 'bi_embed': w = 500; h = 350; break;
+                    case 'shape': w = 120; h = 120; break;
+                }
+
+                // 2. Set position centered on cursor
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+                el.style.width = `${w}px`;
+                el.style.height = `${h}px`;
+                
+                el.dataset.elementType = (type === 'chart') ? 'chart' : (type === 'table' || type === 'datasource_csv' || type === 'datasource_mock') ? 'table' : 'other';
+                
+                if (type === 'reference_list') el.dataset.elementType = 'reference_list';
+                if (type === 'image') el.dataset.elementType = 'image';
+                if (type === 'bi_embed') el.dataset.elementType = 'bi_embed';
+
+                let innerContent = '';
+                let needsTableSetup = false;
+
+                switch(type) {
+                    case 'text':
+                        // Dimensions set above
+                        innerContent = `<h3 class="font-display font-semibold text-lg text-primary-blue mb-2" contenteditable="true">New Text Block</h3><p class="text-sm text-text-dark font-body" contenteditable="true">Start typing your content here...</p>`;
+                        break;
+                    case 'image':
+                        // Dimensions set above
+                        innerContent = `<div class="w-full h-full bg-secondary-gray flex flex-col items-center justify-center rounded text-text-dark/50 hover:bg-secondary-gray/80 transition-colors"><span class="icon icon-image mb-2 pointer-events-none"></span><span class="text-xs pointer-events-none">Click to Upload Image</span></div>`;
+                        break;
+                    case 'chart':
+                        // Dimensions set above
+                        innerContent = `
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-display font-semibold text-lg text-primary-blue m-0" contenteditable="true">Sales Data</h3>
+                                <button class="edit-chart-btn text-gray-400 hover:text-accent-teal p-1 rounded transition">
+                                    <span class="icon icon-edit w-4 h-4"></span>
+                                </button>
+                            </div>
+                            <div class="chart-container h-32 bg-secondary-gray rounded-lg flex items-end p-2 space-x-2"><div class="w-1/3 bg-primary-blue h-1/2 rounded-t"></div><div class="w-1/3 bg-accent-teal h-3/4 rounded-t"></div><div class="w-1/3 bg-primary-blue h-2/3 rounded-t"></div></div><p class="text-xs text-text-dark/70 mt-2 text-center">Drop data source here</p>`;
+                        break;
+                    case 'table':
+                        // Dimensions set above
+                        needsTableSetup = true;
+                        innerContent = `
+                            <div class="flex items-center justify-between mb-2 table-header-container">
+                                <h3 class="font-display font-semibold text-lg text-primary-blue m-0" contenteditable="true">Data Table</h3>
+                                <!-- Actions will be injected here -->
+                            </div>
+                            <div class="overflow-x-auto h-[calc(100%-2.5rem)]">
+                                <table class="w-full text-sm font-body text-text-dark border-collapse table-fixed">
+                                    <thead>
+                                        <tr class="bg-secondary-gray/50">
+                                            <th class="p-2 text-left border-b border-element-border whitespace-normal break-words w-1/2">Column 1</th>
+                                            <th class="p-2 text-left border-b border-element-border whitespace-normal break-words w-1/2">Column 2</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td class="p-2 border-b border-element-border whitespace-normal break-words" contenteditable="true">Data A</td><td class="p-2 border-b border-element-border whitespace-normal break-words" contenteditable="true">100</td></tr>
+                                        <tr><td class="p-2 border-b border-element-border whitespace-normal break-words" contenteditable="true">Data B</td><td class="p-2 border-b border-element-border whitespace-normal break-words" contenteditable="true">200</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>`;
+                        break;
+                    case 'datasource_csv':
+                        // Dimensions set above
+                        needsTableSetup = true;
+                        
+                        let thead = '';
+                        let tbody = '';
+                        // Apply wrap styles to generated headers/cells
+                        if(data.headers) thead = data.headers.map(h => `<th class="p-2 text-left border-b border-element-border whitespace-normal break-words">${h}</th>`).join('');
+                        if(data.preview) tbody = data.preview.map(row => `<tr>${row.map(cell => `<td class="p-2 border-b border-element-border whitespace-normal break-words">${cell}</td>`).join('')}</tr>`).join('');
+                        
+                        if(!thead) thead = `<th class="p-2 text-left border-b border-element-border whitespace-normal break-words">ID</th><th class="p-2 text-left border-b border-element-border whitespace-normal break-words">Value</th>`;
+                        if(!tbody) tbody = `<tr><td class="p-2 border-b border-element-border whitespace-normal break-words">101</td><td class="p-2 border-b border-element-border whitespace-normal break-words">500</td></tr>`;
+
+                        innerContent = `
+                            <div class="flex items-center justify-between mb-2 table-header-container">
+                                <div class="flex items-center">
+                                    <span class="icon icon-csv text-accent-teal w-4 h-4 mr-2"></span>
+                                    <h3 class="font-display font-semibold text-lg text-primary-blue m-0" contenteditable="true">${data.name || 'CSV Data'}</h3>
+                                </div>
+                                <!-- Chart button removed from here, will be added by setupTableInteractions to group with Cols -->
+                            </div>
+                            <div class="overflow-x-auto h-[calc(100%-2.5rem)]">
+                                <table class="w-full text-sm font-body text-text-dark border-collapse table-fixed"> <!-- Added table-fixed -->
+                                    <thead><tr class="bg-secondary-gray/50 sticky top-0">${thead}</tr></thead>
+                                    <tbody>${tbody}</tbody>
+                                </table>
+                            </div>`;
+                        break;
+                    case 'datasource_api':
+                        // Dimensions set above
+                        innerContent = `
+                            <div class="flex items-center mb-2">
+                                <span class="icon icon-api text-primary-blue w-5 h-5 mr-2"></span>
+                                <h3 class="font-display font-semibold text-lg text-primary-blue m-0" contenteditable="true">${data.name || 'API Connection'}</h3>
+                            </div>
+                            <div class="p-3 bg-secondary-gray/30 rounded border border-element-border border-dashed flex flex-col items-center justify-center h-24">
+                                <span class="text-xs text-text-dark/70 mb-1">Status: <span class="text-accent-teal font-bold">Connected</span></span>
+                                <button class="px-3 py-1 bg-white border border-element-border rounded text-xs hover:bg-secondary-gray transition">Refresh Data</button>
+                            </div>
+                        `;
+                        break;
+                    case 'datasource_mock':
+                        // Dimensions set above
+                        needsTableSetup = true;
+                        innerContent = `
+                            <div class="flex items-center justify-between mb-2 table-header-container">
+                                <div class="flex items-center">
+                                    <span class="icon icon-csv text-accent-teal w-4 h-4 mr-2"></span>
+                                    <h3 class="font-display font-semibold text-lg text-primary-blue m-0" contenteditable="true">${data.name}</h3>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto h-[calc(100%-2.5rem)]">
+                                <table class="w-full text-sm font-body text-text-dark border-collapse table-fixed">
+                                    <thead><tr class="bg-secondary-gray/50"><th class="p-2 text-left border-b border-element-border whitespace-normal break-words w-1/2">Product</th><th class="p-2 text-left border-b border-element-border whitespace-normal break-words w-1/2">Sales</th></tr></thead>
+                                    <tbody>
+                                        <tr><td class="p-2 border-b border-element-border whitespace-normal break-words">Widget A</td><td class="p-2 border-b border-element-border whitespace-normal break-words">$1,200</td></tr>
+                                        <tr><td class="p-2 border-b border-element-border whitespace-normal break-words">Widget B</td><td class="p-2 border-b border-element-border whitespace-normal break-words">$850</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>`;
+                        break;
+                    case 'code':
+                        // Dimensions set above
+                        innerContent = `<h3 class="font-display font-semibold text-sm text-primary-blue mb-1" contenteditable="true">Code</h3><pre class="bg-primary-blue/90 text-text-light p-2 rounded-md overflow-x-auto text-xs font-mono h-20" contenteditable="true"><code>print("Hello Datalab")</code></pre>`;
+                        break;
+                    case 'link':
+                        // Dimensions set above
+                        innerContent = `<h3 class="font-display font-semibold text-lg text-primary-blue mb-1" contenteditable="true">Link Title</h3><a href="#" class="text-accent-teal hover:underline text-sm font-body">https://example.com</a>`;
+                        break;
+                    case 'reference_list':
+                        // Dimensions set above
+                        innerContent = `
+                            <div class="flex flex-col h-full">
+                                <h3 class="font-display font-semibold text-lg text-primary-blue mb-2" contenteditable="true">Reference List</h3>
+                                <ul class="list-disc list-inside text-sm text-text-dark font-body flex-1 overflow-y-auto">
+                                    <li class="mb-1"><a href="#" class="text-accent-teal hover:underline cursor-alias">Project Spec</a></li>
+                                    <li class="mb-1"><a href="#" class="text-accent-teal hover:underline cursor-alias">Design Assets</a></li>
+                                </ul>
+                                <button class="add-link-btn mt-2 text-[10px] bg-white border border-element-border hover:bg-secondary-gray text-primary-blue px-2 py-1 rounded transition w-fit self-end flex items-center shadow-sm">
+                                    <span class="font-bold text-sm mr-1">+</span> Add Link
+                                </button>
+                            </div>`;
+                        break;
+                    case 'bi_embed':
+                        // Dimensions set above
+                        innerContent = `<div class="w-full h-full bg-secondary-gray flex flex-col items-center justify-center rounded text-text-dark/50 hover:bg-secondary-gray/80 transition-colors"><span class="icon icon-bi mb-2 pointer-events-none w-8 h-8"></span><span class="text-xs pointer-events-none">Click to Embed Dashboard</span></div>`;
+                        break;
+                    case 'shape':
+                         // Dimensions set above
+                         el.style.borderRadius = '50%';
+                         el.style.backgroundColor = '#2ECC71';
+                         el.style.display = 'flex';
+                         el.style.alignItems = 'center';
+                         el.style.justifyContent = 'center';
+                         innerContent = `<span class="text-white font-bold" contenteditable="true">Tag</span>`;
+                         break;
+                }
+                
+                el.innerHTML = `<div class="element-content">${innerContent}</div>`;
+                canvasArea.appendChild(el);
+                addCloseButton(el);
+                
+                if (needsTableSetup) {
+                    setupTableInteractions(el);
+                }
+
+                if (type === 'reference_list') {
+                    setupReferenceListInteractions(el);
+                }
+
+                if (type === 'image') {
+                    if (window.setupImageInteractions) window.setupImageInteractions(el);
+                }
+
+                if (type === 'bi_embed') {
+                    if (window.setupBIInteractions) window.setupBIInteractions(el);
+                }
+
+                if (type === 'chart') {
+                    if (window.setupChartInteractions) window.setupChartInteractions(el);
+                }
+                
+                document.querySelectorAll('.canvas-element').forEach(item => item.classList.remove('selected'));
+                activeElement = el; 
+                el.style.animation = "pulse 0.5s";
+                setTimeout(() => el.style.animation = "", 500);
+            }
+
+            // --- CANVAS: Moving existing elements ---
+            let activeElement = null;
+            let initialX, initialY, xOffset, yOffset;
+
+            canvasArea.addEventListener('mousedown', (e) => {
+                const target = e.target.closest('.canvas-element');
+                if (target) {
+                    const isResize = e.offsetX > target.offsetWidth - 15 && e.offsetY > target.offsetHeight - 15;
+                    const isEditing = e.target.isContentEditable || e.target.tagName === 'INPUT';
+                    const isCloseBtn = e.target.closest('button') || e.target.closest('.col-menu') || e.target.tagName === 'LABEL'; // Prevent dragging when interacting with menu
+                    const isResizer = e.target.classList.contains('resizer'); // Check if clicking resizer
+
+                    if (!isResize && !isEditing && !isCloseBtn && !isResizer) {
+                        document.querySelectorAll('.canvas-element').forEach(el => {
+                            el.classList.remove('selected');
+                            el.style.cursor = 'grab';
+                        });
+                        activeElement = target;
+                        activeElement.classList.add('selected');
+                        activeElement.style.cursor = 'grabbing';
+                        initialX = e.clientX;
+                        initialY = e.clientY;
+                        xOffset = e.clientX - activeElement.getBoundingClientRect().left;
+                        yOffset = e.clientY - activeElement.getBoundingClientRect().top;
+                    }
+                } else {
+                    // Only deselect if not interacting with menu
+                    if (!e.target.closest('.col-menu') && !e.target.closest('.btn-cols')) {
+                        document.querySelectorAll('.canvas-element').forEach(el => el.classList.remove('selected'));
+                        activeElement = null;
+                    }
+                }
+            });
+
+            canvasArea.addEventListener('mousemove', (e) => {
+                if (activeElement) {
+                    e.preventDefault();
+                    const rect = canvasArea.getBoundingClientRect();
+                    const newLeft = e.clientX - xOffset - rect.left + canvasArea.scrollLeft;
+                    const newTop = e.clientY - yOffset - rect.top + canvasArea.scrollTop;
+                    activeElement.style.left = `${newLeft}px`;
+                    activeElement.style.top = `${newTop}px`;
+                }
+            });
+
+            canvasArea.addEventListener('mouseup', () => {
+                if (activeElement) {
+                    activeElement.style.cursor = 'grab';
+                    activeElement = null;
+                }
+            });
+
+            // --- Context Menu ---
+            canvasArea.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.context-menu').forEach(m => m.remove());
+                
+                const target = e.target.closest('.canvas-element');
+                const menu = document.createElement('div');
+                menu.className = 'context-menu absolute bg-element-bg border border-element-border rounded shadow-lg py-1 z-50 text-sm font-body';
+                menu.style.left = `${e.clientX}px`;
+                menu.style.top = `${e.clientY}px`;
+                
+                let options = target ? ['Delete Element', 'Duplicate', 'Bring to Front'] : ['Reset View', 'Paste'];
+                
+                options.forEach(opt => {
+                    const item = document.createElement('div');
+                    item.className = 'px-4 py-2 hover:bg-secondary-gray cursor-pointer text-text-dark';
+                    item.innerText = opt;
+                    item.onclick = () => {
+                        if (opt === 'Delete Element' && target) target.remove();
+                        if (opt === 'Bring to Front' && target) target.style.zIndex = parseInt(target.style.zIndex || 0) + 1;
+                        if (opt === 'Duplicate' && target) {
+                             const clone = target.cloneNode(true);
+                             clone.style.left = parseInt(target.style.left) + 20 + 'px';
+                             clone.style.top = parseInt(target.style.top) + 20 + 'px';
+                             canvasArea.appendChild(clone);
+                             addCloseButton(clone);
+                             // Re-initialize interactions for clone if it's a table
+                             if(clone.dataset.elementType === 'table') setupTableInteractions(clone);
+                             if(clone.dataset.elementType === 'reference_list') setupReferenceListInteractions(clone);
+                             if(clone.dataset.elementType === 'image' && window.setupImageInteractions) window.setupImageInteractions(clone);
+                        }
+                        menu.remove();
+                    };
+                    menu.appendChild(item);
+                });
+                document.body.appendChild(menu);
+                const closeMenu = () => {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                };
+                setTimeout(() => document.addEventListener('click', closeMenu), 10);
+            });
+        });
+    </script>
+</body>
+</html>

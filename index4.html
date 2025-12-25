@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project L - Broadcast Data Platform</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Prompt', sans-serif; }
+        
+        /* Custom Scrollbar */
+        .json-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .json-scroll::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        .json-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .json-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Animations */
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.8s ease-out forwards; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- DATA: Mock Flex Messages ---
+        const FLEX_DATA = {
+            lotteryJson: {
+                "type": "bubble", "size": "giga",
+                "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "image", "size": "full", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_background/Headband_3_black.png", "aspectMode": "fit", "aspectRatio": "5:1" }] },
+                "hero": { "type": "video", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_video/250801_Prize_chudyai.mp4", "previewUrl": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_vdo_cover/250801_Prize_chudyai_Cover.png", "aspectRatio": "16:9" },
+                "body": { "type": "box", "layout": "vertical", "contents": [{ "type": "box", "layout": "vertical", "contents": [
+                    { "type": "box", "layout": "horizontal", "contents": [{ "type": "box", "layout": "vertical", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_button/purchase_lottery_flex1.png" }] }, { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "ซื้อลอตเตอรี่" }, { "type": "text", "text": "กี่ใบก็มีลุ้น! โอกาสมีอยู่ทุกใบ" }] }] },
+                    { "type": "separator" },
+                    { "type": "box", "layout": "horizontal", "contents": [{ "type": "box", "layout": "vertical", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_button/purchase_jidrid_flex1.png" }] }, { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "จิ๊ดริดหยิบโชค" }, { "type": "text", "text": "ไม่มีเลขในใจ ใช้จิ๊ดริดหยิบให้เลย" }] }] },
+                    { "type": "separator" },
+                    { "type": "box", "layout": "horizontal", "contents": [{ "type": "box", "layout": "vertical", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_button/purchase_goldentime_flex1.png" }] }, { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "นาทีทอง" }, { "type": "text", "text": "นาทีนี้ใครไว ใครได้" }] }] }
+                ] }] },
+                "footer": { "type": "box", "layout": "vertical", "contents": [], "backgroundColor": "#ff0200ff" }
+            },
+            lotteryJson2: {
+                "type": "carousel",
+                "contents": [
+                    { "type": "bubble", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/ltp_flex2_cards/count_01.jpg", "size": "full", "aspectMode": "cover", "aspectRatio": "3:3.2", "action": { "type": "uri", "label": "ซื้อลอตเตอรี่ที่นี่", "uri": "https://lin.ee/oV69qGV" } } },
+                    { "type": "bubble", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/ltp_flex2_cards/count_02.jpg", "size": "full", "aspectMode": "cover", "aspectRatio": "3:3.2", "action": { "type": "uri", "label": "ซื้อลอตเตอรี่ที่นี่", "uri": "https://lin.ee/IcgKyUm" } } },
+                    { "type": "bubble", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/ltp_flex2_cards/count_03.jpg", "aspectRatio": "3:3.2", "aspectMode": "cover", "size": "full", "action": { "type": "uri", "label": "ซื้อลอตเตอรี่ที่นี่", "uri": "https://lin.ee/pwTuVaa" } } },
+                    { "type": "bubble", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/ltp_flex2_cards/count_05.jpg", "aspectRatio": "3:3.2", "aspectMode": "cover", "size": "full", "action": { "type": "uri", "label": "ซื้อลอตเตอรี่ที่นี่", "uri": "https://lin.ee/Nxyg8FL" } } },
+                    { "type": "bubble", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/ltp_flex2_cards/count_10.jpg", "aspectRatio": "3:3.2", "aspectMode": "cover", "size": "full", "action": { "type": "uri", "label": "ซื้อลอตเตอรี่ที่นี่", "uri": "https://lin.ee/SeDO4Ud" } } }
+                ]},
+            lotteryJson3: {
+                "type": "carousel",
+                "contents": [
+                    {
+                        "type": "bubble", "size": "mega",
+                        "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_logolotteryplus/logo_lotteryplus_horizontal_red.png", "size": "200px", "aspectRatio": "5:1", "aspectMode": "fit" }], "spacing": "0px", "paddingAll": "0px" },
+                        "body": {
+                            "type": "box", "layout": "vertical", "spacing": "none",
+                            "contents": [
+                                { "type": "image", "position": "absolute", "size": "380px", "gravity": "center", "align": "center", "margin": "none", "offsetTop": "-120px", "offsetStart": "0px", "aspectRatio": "1:2", "offsetEnd": "0px", "aspectMode": "fit", "offsetBottom": "-120px", "action": { "type": "uri", "label": "รวมเลขเด็ดเลขดัง", "uri": "https://lin.ee/18vidat" }, "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_background/lakdung_BC_flex3.png" },
+                                { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_coolnumber/ruamlakdetlakdang.png", "position": "relative", "aspectMode": "fit", "offsetTop": "-110px", "offsetStart": "0px", "margin": "lg", "size": "full", "action": { "type": "uri", "label": "รวมเลขเด็ดเลขดัง", "uri": "https://lin.ee/18vidat" } },
+                                { "type": "text", "size": "lg", "align": "center", "color": "#ffffff", "contents": [{ "type": "span", "text": "ประจำงวดวันที่ 16 พฤศจิกายน 2568", "weight": "bold", "size": "xs" }], "weight": "bold", "position": "absolute", "gravity": "center", "offsetStart": "53px", "offsetTop": "80px" },
+                                { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_jidrid/Jidrid_122.png", "size": "3xl", "align": "center", "gravity": "center", "position": "absolute", "offsetStart": "65px", "offsetTop": "130px" }
+                            ],
+                            "background": { "type": "linearGradient", "angle": "0deg", "startColor": "#000000", "endColor": "#000000" }, "flex": 1
+                        }
+                    },
+                    {
+                        "type": "bubble", "size": "mega",
+                        "body": {
+                            "type": "box", "layout": "vertical", "cornerRadius": "xl", "height": "400px", "paddingAll": "10px",
+                            "contents": [
+                                {
+                                    "type": "box", "layout": "vertical", "backgroundColor": "#ffffff", "cornerRadius": "xl", "height": "190px", "paddingAll": "0px", "spacing": "none",
+                                    "contents": [
+                                        { "type": "box", "layout": "vertical", "contents": [], "height": "10px" },
+                                        { "type": "box", "layout": "horizontal", "cornerRadius": "md", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_logo_program/lekpheehian.png", "aspectMode": "cover", "size": "full", "gravity": "center", "align": "center", "aspectRatio": "3.5:1" }], "background": { "type": "linearGradient", "angle": "170deg", "startColor": "#00000020", "endColor": "#000000", "centerColor": "#000000" } },
+                                        { "type": "box", "layout": "vertical", "height": "60px", "justifyContent": "center", "contents": [{ "type": "filler" }, { "type": "box", "layout": "horizontal", "justifyContent": "center", "flex": 1, "alignItems": "center", "height": "50px", "contents": [{ "type": "filler" }, { "type": "text", "text": "283", "weight": "bold", "size": "lg" }, { "type": "text", "text": "20", "weight": "bold", "size": "lg" }, { "type": "filler" }] }] },
+                                        { "type": "text", "align": "center", "gravity": "center", "contents": [{ "type": "span", "text": "หลอนพารวย ลูกเต๋าและปิงปองให้โชค", "size": "xs" }] }
+                                    ]
+                                },
+                                {
+                                    "type": "box", "layout": "vertical", "backgroundColor": "#ffffff", "cornerRadius": "xl", "height": "210px", "paddingAll": "0px", "spacing": "none",
+                                    "contents": [
+                                        { "type": "box", "layout": "vertical", "contents": [], "height": "20px" },
+                                        { "type": "box", "layout": "horizontal", "cornerRadius": "md", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_logo_program/patithinjeen.png", "aspectMode": "cover", "size": "full", "gravity": "center", "align": "center", "aspectRatio": "3.5:1" }] },
+                                        { "type": "box", "layout": "vertical", "height": "60px", "justifyContent": "center", "contents": [{ "type": "filler" }, { "type": "box", "layout": "horizontal", "justifyContent": "center", "flex": 1, "alignItems": "center", "height": "50px", "contents": [{ "type": "filler" }, { "type": "text", "text": "2", "weight": "bold", "size": "lg" }, { "type": "text", "text": "6", "weight": "bold", "size": "lg" }, { "type": "text", "text": "3", "weight": "bold", "size": "lg" }, { "type": "text", "text": "5", "weight": "bold", "size": "lg" }, { "type": "filler" }] }] },
+                                        { "type": "text", "align": "center", "gravity": "center", "contents": [{ "type": "span", "text": "งวดนี้ไม่ธรรมดา ต้องมีติดตู้เซฟไว้", "size": "xs" }] }
+                                    ]
+                                }
+                            ]
+                        },
+                        "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "**เป็นความเชื่อส่วนบุคคล", "size": "xxs", "adjustMode": "shrink-to-fit", "align": "end" }] }
+                    },
+                    {
+                        "type": "bubble", "size": "mega",
+                        "body": {
+                            "type": "box", "layout": "vertical", "cornerRadius": "xl", "height": "400px", "paddingAll": "10px",
+                            "contents": [
+                                {
+                                    "type": "box", "layout": "vertical", "backgroundColor": "#ffffff", "cornerRadius": "xl", "height": "190px", "paddingAll": "0px", "flex": 1, "spacing": "none",
+                                    "contents": [
+                                        { "type": "box", "layout": "vertical", "contents": [], "height": "10px" },
+                                        { "type": "box", "layout": "horizontal", "cornerRadius": "md", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_logo_program/maetukta.png", "aspectMode": "cover", "size": "full", "gravity": "center", "align": "center", "aspectRatio": "3.5:1" }] },
+                                        { "type": "box", "layout": "vertical", "height": "60px", "justifyContent": "center", "contents": [{ "type": "filler" }, { "type": "box", "layout": "horizontal", "justifyContent": "center", "flex": 1, "alignItems": "center", "height": "50px", "contents": [{ "type": "filler" }, { "type": "text", "text": "2", "weight": "bold", "size": "lg" }, { "type": "text", "text": "9", "weight": "bold", "size": "lg" }, { "type": "text", "text": "4", "weight": "bold", "size": "lg" }, { "type": "text", "text": "7", "weight": "bold", "size": "lg" }, { "type": "text", "text": "0", "weight": "bold", "size": "lg" }, { "type": "filler" }] }] },
+                                        { "type": "text", "align": "center", "gravity": "center", "contents": [{ "type": "span", "text": "พาเข้ามาแล้วหลายงวด", "size": "xs" }] }
+                                    ]
+                                },
+                                {
+                                    "type": "box", "layout": "vertical", "backgroundColor": "#ffffff", "cornerRadius": "xl", "height": "210px", "paddingAll": "0px", "flex": 1, "spacing": "none",
+                                    "contents": [
+                                        { "type": "box", "layout": "vertical", "contents": [], "height": "20px" },
+                                        { "type": "box", "layout": "horizontal", "cornerRadius": "md", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_logo_program/lekai.png", "aspectMode": "cover", "size": "full", "gravity": "center", "align": "center", "aspectRatio": "3.5:1" }] },
+                                        { "type": "box", "layout": "vertical", "height": "60px", "justifyContent": "center", "contents": [{ "type": "filler" }, { "type": "box", "layout": "horizontal", "justifyContent": "center", "contents": [{ "type": "filler" }, { "type": "text", "text": "15", "weight": "bold", "size": "lg" }, { "type": "text", "text": "63", "weight": "bold", "size": "lg" }, { "type": "text", "text": "89", "weight": "bold", "size": "lg" }, { "type": "text", "text": "07", "weight": "bold", "size": "lg" }, { "type": "text", "text": "42", "weight": "bold", "size": "lg" }, { "type": "filler" }], "flex": 1, "alignItems": "center", "height": "25px" }, { "type": "box", "layout": "horizontal", "justifyContent": "center", "contents": [{ "type": "filler" }, { "type": "text", "text": "30", "weight": "bold", "size": "lg" }, { "type": "text", "text": "56", "weight": "bold", "size": "lg" }, { "type": "text", "text": "92", "weight": "bold", "size": "lg" }, { "type": "text", "text": "24", "weight": "bold", "size": "lg" }, { "type": "text", "text": "78", "weight": "bold", "size": "lg" }, { "type": "filler" }], "flex": 1, "alignItems": "center", "height": "25px" }] },
+                                        { "type": "text", "align": "center", "gravity": "center", "contents": [{ "type": "span", "text": "สายตัวเลข ไม่ควรพลาด", "size": "xs" }] }
+                                    ]
+                                }
+                            ]
+                        },
+                        "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "**เป็นความเชื่อส่วนบุคคล", "size": "xxs", "adjustMode": "shrink-to-fit", "align": "end" }] }
+                    }
+                ]
+            },
+            lotteryJson4: {
+                "type": "bubble", "size": "mega",
+                "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_logolotteryplus/logo_lotteryplus_horizontal_white.png", "align": "start", "aspectMode": "fit", "gravity": "center", "size": "5xl", "animated": true, "aspectRatio": "6:1" }], "paddingAll": "20px", "spacing": "none", "height": "65px", "paddingTop": "22px", "background": { "type": "linearGradient", "angle": "330deg", "startColor": "#b31217", "endColor": "#ff0000", "centerColor": "#D31027" }, "justifyContent": "center" },
+                "hero": { "type": "video", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_video/250716_Sell_Night.mp4", "previewUrl": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_video/250716_Sell_Night.mp4", "altContent": { "type": "image", "size": "full", "aspectRatio": "16:9", "aspectMode": "cover", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_vdo_cover/250716_Sell_Night_Cover.png" }, "aspectRatio": "16:9" },
+                "body": {
+                    "type": "box", "layout": "vertical", "margin": "lg",
+                    "contents": [
+                        { "type": "text", "text": "วิธีสมัครสมาชิก", "color": "#b7b7b7", "size": "xs", "style": "italic", "decoration": "underline", "margin": "md" },
+                        { "type": "box", "layout": "horizontal", "spacing": "sm", "margin": "xl", "alignItems": "center", "contents": [{ "type": "text", "text": "Step 1", "size": "xs", "gravity": "center", "color": "#EF454D", "weight": "bold", "flex": 1, "align": "end" }, { "type": "box", "layout": "vertical", "contents": [{ "type": "box", "layout": "vertical", "contents": [], "cornerRadius": "30px", "height": "12px", "width": "12px", "borderColor": "#B7B7B7", "borderWidth": "2px" }], "width": "24px", "alignItems": "center", "justifyContent": "center" }, { "type": "text", "text": "เลือกเมนู 'สมาชิก'", "gravity": "center", "flex": 4, "size": "sm", "weight": "bold", "margin": "sm" }] },
+                        { "type": "box", "layout": "horizontal", "spacing": "sm", "contents": [{ "type": "filler", "flex": 1 }, { "type": "box", "layout": "vertical", "contents": [{ "type": "box", "layout": "vertical", "contents": [], "width": "2px", "backgroundColor": "#B7B7B7", "height": "40px" }], "width": "24px", "alignItems": "center" }, { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "กด 'ตกลง' ระะบบจะไปที่ LINE", "color": "#8c8c8c", "size": "xs", "gravity": "center", "wrap": true }, { "type": "text", "text": "กด 'อนุญาต'", "color": "#8c8c8c", "size": "xs", "gravity": "center", "wrap": true }], "flex": 4, "justifyContent": "center", "margin": "sm" }] },
+                        { "type": "box", "layout": "horizontal", "spacing": "sm", "alignItems": "center", "contents": [{ "type": "text", "text": "Step 2", "gravity": "center", "size": "xs", "weight": "bold", "color": "#EF454D", "flex": 1, "align": "end" }, { "type": "box", "layout": "vertical", "contents": [{ "type": "box", "layout": "vertical", "contents": [], "cornerRadius": "30px", "width": "12px", "height": "12px", "borderColor": "#EF454D", "borderWidth": "2px" }], "width": "24px", "alignItems": "center", "justifyContent": "center" }, { "type": "text", "text": "เพิ่มเพื่อน LINE Official", "gravity": "center", "flex": 4, "size": "sm", "weight": "bold", "margin": "sm" }] },
+                        { "type": "box", "layout": "horizontal", "spacing": "sm", "alignItems": "center", "contents": [{ "type": "filler", "flex": 1 }, { "type": "box", "layout": "vertical", "contents": [{ "type": "box", "layout": "vertical", "contents": [], "width": "2px", "backgroundColor": "#EF454D", "background": { "type": "linearGradient", "angle": "0deg", "startColor": "#b31217", "endColor": "#ff0000", "centerColor": "#D31027" }, "height": "30px" }], "width": "24px", "alignItems": "center" }, { "type": "text", "text": "กรอกข้อมูลส่วนตัวให้ครบถ้วน", "gravity": "center", "flex": 4, "size": "xs", "color": "#8c8c8c", "margin": "sm" }] },
+                        { "type": "box", "layout": "horizontal", "spacing": "sm", "alignItems": "center", "contents": [{ "type": "text", "text": "Step 3", "gravity": "center", "size": "xs", "color": "#EF454D", "weight": "bold", "flex": 1, "align": "end" }, { "type": "box", "layout": "vertical", "contents": [{ "type": "box", "layout": "vertical", "contents": [], "cornerRadius": "30px", "width": "12px", "height": "12px", "borderColor": "#EF454D", "borderWidth": "2px", "backgroundColor": "#EF454D" }], "width": "24px", "alignItems": "center", "justifyContent": "center" }, { "type": "text", "text": "กด 'ลงทะเบียน'", "gravity": "center", "flex": 4, "size": "sm", "weight": "bold", "margin": "sm" }] }
+                    ]
+                },
+                "footer": {
+                    "type": "box", "layout": "vertical", "alignItems": "center",
+                    "contents": [
+                        { "type": "filler" },
+                        { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "สมัครเลย", "weight": "bold", "color": "#ffffff", "offsetBottom": "1px" }], "backgroundColor": "#ff0000cc", "cornerRadius": "10px", "justifyContent": "center", "alignItems": "center", "width": "250px", "height": "45px", "background": { "type": "linearGradient", "angle": "330deg", "startColor": "#b31217cc", "endColor": "#ff0000cc", "centerColor": "#D31027cc" }, "action": { "type": "uri", "label": "action", "uri": "https://liff.line.me/1660835514-6pJ95rZ1" } },
+                        { "type": "filler" }
+                    ]
+                }
+            },
+            lotteryJson5: {
+                "type": "bubble", "size": "mega",
+                "hero": {
+                    "type": "video", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_video/250701_Sell_lekkhaotookchuamong.mp4", "altContent": { "type": "image", "size": "full", "aspectRatio": "16:9", "aspectMode": "cover", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_vdo_cover/250701_Sell_lekkhaotookchuamong_Cover.png" },
+                    "action": { "type": "uri", "label": "กดซื้อ รางวัลที่ 1", "uri": "https://liff.line.me/1660835514-xVBgVpKd" }, "aspectRatio": "16:9", "previewUrl": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_video/250701_Sell_lekkhaotookchuamong.mp4"
+                },
+                "body": {
+                    "type": "box", "layout": "vertical", "backgroundColor": "#f9f5f2", "contents": [
+                    {
+                        "type": "box", "layout": "vertical", "alignItems": "center",
+                        "contents": [
+                        { "type": "box", "layout": "vertical", "contents": [], "backgroundColor": "#c0c0c080", "width": "200px", "height": "3px", "justifyContent": "center", "alignItems": "center", "offsetTop": "34px", "background": { "type": "linearGradient", "angle": "90deg", "startColor": "#EAEAEA", "endColor": "#ff0000", "centerColor": "#c0c0c0" } },
+                        {
+                            "type": "box", "layout": "horizontal", "contents": [
+                            { "type": "filler", "flex": 1 },
+                            { "type": "box", "layout": "vertical", "contents": [ { "type": "box", "layout": "vertical", "contents": [ { "type": "image", "url": "https://lotterypluscdn.blob.core.windows.net/lotteryplus-icon/190.png", "size": "20px", "aspectRatio": "1:1", "aspectMode": "cover", "align": "center", "gravity": "center" } ], "backgroundColor": "#ffffff", "width": "40px", "height": "40px", "cornerRadius": "100px", "alignItems": "center", "justifyContent": "center", "borderWidth": "1.5px", "borderColor": "#ffffff" }, { "type": "text", "text": "Step 1", "size": "10px", "contents": [ { "type": "span", "text": "กดเลือกเลข ใส่ตะกร้า" } ], "wrap": true, "align": "center", "offsetTop": "15px" } ], "alignItems": "center", "cornerRadius": "100px", "flex": 2, "width": "60px", "height": "100px" },
+                            { "type": "filler" },
+                            { "type": "box", "layout": "vertical", "contents": [ { "type": "box", "layout": "vertical", "contents": [ { "type": "image", "url": "https://lotterypluscdn.blob.core.windows.net/lotteryplus-icon/190.png", "size": "20px", "aspectRatio": "1:1", "aspectMode": "cover", "align": "center", "gravity": "center" } ], "backgroundColor": "#ffffff", "width": "40px", "height": "40px", "cornerRadius": "100px", "alignItems": "center", "justifyContent": "center", "borderColor": "#ADA996", "borderWidth": "1.5px" }, { "type": "text", "text": "Step 1", "size": "10px", "contents": [ { "type": "span", "text": "เลือกช่องทาง การชำระเงิน" } ], "wrap": true, "align": "center", "offsetTop": "15px" } ], "alignItems": "center", "cornerRadius": "100px", "flex": 2, "width": "60px", "height": "100px" },
+                            { "type": "filler" },
+                            { "type": "box", "layout": "vertical", "contents": [ { "type": "box", "layout": "vertical", "contents": [ { "type": "image", "url": "https://lotterypluscdn.blob.core.windows.net/lotteryplus-icon/190.png", "size": "20px", "aspectRatio": "1:1", "aspectMode": "cover", "align": "center", "gravity": "center" } ], "backgroundColor": "#ff0000", "width": "38px", "height": "38px", "cornerRadius": "100px", "alignItems": "center", "justifyContent": "center" }, { "type": "text", "text": "Step 1", "size": "10px", "contents": [ { "type": "span", "text": "คำสั่งซื้อ สำเร็จ" } ], "wrap": true, "align": "center", "offsetTop": "15px" } ], "alignItems": "center", "cornerRadius": "100px", "flex": 2, "width": "60px", "height": "100px", "justifyContent": "center", "alignItems": "center", "offsetTop": "10px", "borderWidth": "1.5px", "borderColor": "#ff0000" },
+                            { "type": "filler" }
+                            ]
+                        }
+                        ]
+                    }
+                    ]
+                }
+            },
+            lotteryJson6: {
+                "type": "carousel",
+                "contents": [
+                    { "type": "bubble", "size": "deca", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_prize_person/jidrid/Jidrid-001.png", "aspectRatio": "1:2", "size": "300px" }, "action": { "type": "uri", "label": "action", "uri": "https://lin.ee/lSM8jEB" }, "styles": { "footer": { "separator": false } } },
+                    { "type": "bubble", "size": "deca", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_prize_person/jidrid/Jidrid-002.png", "aspectRatio": "1:2", "size": "300px" }, "action": { "type": "uri", "label": "action", "uri": "https://lin.ee/lSM8jEB" }, "styles": { "footer": { "separator": false } } },
+                    { "type": "bubble", "size": "deca", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_prize_person/jidrid/Jidrid-003.png", "aspectRatio": "1:2", "size": "300px" }, "action": { "type": "uri", "label": "action", "uri": "https://lin.ee/lSM8jEB" }, "styles": { "footer": { "separator": false } } },
+                    { "type": "bubble", "size": "deca", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_prize_person/jidrid/Jidrid-004.png", "aspectRatio": "1:2", "size": "300px" }, "action": { "type": "uri", "label": "action", "uri": "https://lin.ee/lSM8jEB" }, "styles": { "footer": { "separator": false } } },
+                    { "type": "bubble", "size": "deca", "hero": { "type": "image", "url": "https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_prize_person/jidrid/Jidrid-005.png", "aspectRatio": "1:2", "size": "300px" }, "action": { "type": "uri", "label": "action", "uri": "https://lin.ee/lSM8jEB" }, "styles": { "footer": { "separator": false } } }
+                ]
+            }
+        };
+
+        // --- CUSTOM HOOKS (ปรับปรุง Logic การ Scroll) ---
+        const useHorizontalScroll = (scrollAmount = 300) => {
+            const scrollRef = useRef(null);
+            const [canScrollLeft, setCanScrollLeft] = useState(false);
+            const [canScrollRight, setCanScrollRight] = useState(true);
+
+            const checkScroll = useCallback(() => {
+                const el = scrollRef.current;
+                if (el) {
+                    const { scrollLeft, scrollWidth, clientWidth } = el;
+                    setCanScrollLeft(scrollLeft > 1);
+                    setCanScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
+                }
+            }, []);
+
+            useEffect(() => {
+                const el = scrollRef.current;
+                checkScroll();
+                if (el) {
+                    el.addEventListener('scroll', checkScroll);
+                    window.addEventListener('resize', checkScroll);
+                }
+                return () => {
+                    if (el) el.removeEventListener('scroll', checkScroll);
+                    window.removeEventListener('resize', checkScroll);
+                };
+            }, [checkScroll]);
+
+            const scroll = (offset) => {
+                if (scrollRef.current) {
+                    scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+                }
+            };
+
+            return { 
+                scrollRef, 
+                canScrollLeft, 
+                canScrollRight, 
+                scrollLeft: () => scroll(-scrollAmount), 
+                scrollRight: () => scroll(scrollAmount) 
+            };
+        };
+
+        // --- Icons Helper ---
+        const Icon = ({ name, size = 24, className }) => {
+            if (!window.lucide) return <span className={className}>Icon</span>;
+            useEffect(() => { lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} className={className} width={size} height={size}></i>;
+        };
+
+        // --- Charts Helper ---
+        const ChartComponent = ({ id, type, data, options }) => {
+            const chartRef = useRef(null);
+            useEffect(() => {
+                const ctx = document.getElementById(id);
+                if (chartRef.current) chartRef.current.destroy();
+                chartRef.current = new Chart(ctx, { type, data, options });
+                return () => { if (chartRef.current) chartRef.current.destroy(); };
+            }, [data]);
+            return <canvas id={id}></canvas>;
+        };
+
+        // --- Modal ---
+        const JsonModal = ({ title, code, onClose }) => {
+            const [copied, setCopied] = useState(false);
+            const handleCopy = () => {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(JSON.stringify(code, null, 2));
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                }
+            };
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-slate-900 w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                        <div className="flex justify-between items-center p-4 border-b border-slate-700 bg-slate-800">
+                            <h3 className="text-white font-bold flex items-center"><Icon name="code" size={20} className="mr-2 text-red-400" /> {title} - JSON Source</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-white"><Icon name="x" size={24} /></button>
+                        </div>
+                        <div className="flex-1 overflow-auto p-6 bg-[#0d1117] json-scroll">
+                            <pre className="text-sm font-mono text-white leading-relaxed whitespace-pre-wrap break-all">{JSON.stringify(code, null, 2)}</pre>
+                        </div>
+                        <div className="p-4 border-t border-slate-700 bg-slate-800 flex justify-end gap-3">
+                            <button onClick={handleCopy} className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition ${copied ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-200'}`}><Icon name={copied ? "check" : "copy"} size={16} className="mr-2" /> {copied ? "Copied!" : "Copy JSON"}</button>
+                            <button onClick={onClose} className="px-4 py-2 rounded-lg bg-slate-600 text-white text-sm font-medium hover:bg-slate-500">Close</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Renderers ---
+        const LotteryFlexRenderer = ({ json }) => {
+            if (!json || !json.body) return null;
+            const mainContents = json.body?.contents?.[0]?.contents;
+            if (!mainContents) return <div className="text-xs text-red-500">Error: Invalid JSON Structure</div>;
+
+            const items = [0, 2, 4].map(idx => {
+                const row = mainContents[idx];
+                if (!row) return null;
+                const iconUrl = row.contents?.[0]?.contents?.[0]?.url;
+                const textBox = row.contents?.[1];
+                const title = textBox?.contents?.[0]?.text || "";
+                const sub = textBox?.contents?.[1]?.text || "";
+                return { img: iconUrl, title, sub };
+            }).filter(Boolean);
+
+            return (
+                <div className="bg-white w-full h-[500px] flex flex-col rounded-xl border border-slate-200 shadow-sm mx-auto overflow-hidden rounded-md">
+                    {json.header?.contents?.[0]?.url && (
+                        <div className="w-full bg-slate-50 relative">
+                             <img src={json.header.contents[0].url} className="w-full object-contain block" style={{aspectRatio: 20/3}} />
+                        </div>
+                    )}
+                    {json.hero && (
+                        <div className="relative w-full bg-black">
+                            {json.hero.type === 'video' ? (
+                                <div className="relative w-full" style={{aspectRatio: json.hero.aspectRatio ? json.hero.aspectRatio.replace(':','/') : '16/9'}}>
+                                    <img src={json.hero.altContent?.url || json.hero.previewUrl} className="w-full h-full object-cover opacity-90" />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors duration-300 group cursor-pointer">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center  transition-transform duration-300 group-hover:scale-110">
+                                            <Icon name="play" size={25} className="text-white fill-white ml-1" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <img src={json.hero.url} className="w-full object-cover" style={{aspectRatio: json.hero.aspectRatio?.replace(':','/')}} />
+                            )}
+                        </div>
+                    )}
+                    <div className="flex flex-col">
+                        {items.map((item, i) => (
+                            <div key={i} className="flex items-center p-4 gap-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors cursor-pointer group">
+                                <div className="w-[70px] h-[60px] flex-shrink-0 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100  transition-colors overflow-hidden">
+                                    <img src={item.img} className="w-full h-full object-contain" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-lg text-slate-900 truncate leading-tight">{item.title}</h4>
+                                    <p className="text-sm text-slate-500 truncate mt-0.5">{item.sub}</p>
+                                </div>
+                                <div className="w-6 opacity-40 group-hover:opacity-100 transition-opacity">
+                                    <img src="https://img-flex.xn--m3ca1athe9asc7b2b6iqe.com/line_flex_message/flex_raw_material/source/ltp_button/next.png" className="w-full" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="h-2 w-full" style={{ backgroundColor: json.footer?.backgroundColor || '#ff0200' }}></div>
+                </div>
+            );
+        };
+
+        const Type2CarouselRenderer = ({ json }) => {
+            if (!json || json.type !== 'carousel') return null;
+            // ใช้ Custom Hook แทนโค้ดซ้ำๆ
+            const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } = useHorizontalScroll(310);
+
+            return (
+                <div className="relative group/carousel w-full">
+                    <button onClick={scrollLeft} className={`absolute -left-7 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/50 backdrop-blur-sm shadow-md rounded-full flex items-center justify-center text-slate-700 hover:text-red-600 hover:scale-110 transition-all duration-300 ${canScrollLeft ? 'opacity-0 group-hover/carousel:opacity-100 visible' : 'opacity-0 invisible'}`}>
+                        <Icon name="chevron-left" size={28} />
+                    </button>
+
+                    <div ref={scrollRef} className="flex overflow-x-auto py-2 gap-3 snap-x w-full hide-scroll pl-1 scroll-smooth">
+                        {json.contents.map((bubble, i) => (
+                            <div key={i} className="flex-shrink-0 snap-center rounded-xl overflow-hidden shadow-sm relative group cursor-pointer transition-transform hover:scale-[1.02]" style={{width: '300px', aspectRatio: '3/3.2'}}>
+                                {bubble.hero && <img src={bubble.hero.url} className="w-full h-full object-cover" loading="lazy" />}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4"></div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button onClick={scrollRight} className={`absolute -right-7 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/50 backdrop-blur-sm shadow-md rounded-full flex items-center justify-center text-slate-700 hover:text-red-600 hover:scale-110 transition-all duration-300 ${canScrollRight ? 'opacity-0 group-hover/carousel:opacity-100 visible' : 'opacity-0 invisible'}`}>
+                        <Icon name="chevron-right" size={28} />
+                    </button>
+                </div>
+            )
+        };
+
+        const Type3CarouselRenderer = ({ json }) => {
+            if (!json || json.type !== 'carousel') return null;
+            // ใช้ Custom Hook
+            const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } = useHorizontalScroll(280);
+
+            // --- Recursive Renderer (สำหรับ Bubble 2, 3...) ---
+            const renderFlexComponent = (component, index) => {
+                if (!component) return null;
+                const { type, contents, text, url, layout, flex, margin, spacing, size, align, gravity, weight, color, backgroundColor, cornerRadius, borderColor, borderWidth, paddingAll, height, width, position, offsetTop, offsetBottom, offsetStart, offsetEnd, aspectRatio, aspectMode, action } = component;
+                
+                const style = {};
+                if (flex !== undefined) style.flex = flex;
+                if (width) style.width = width;
+                const isContainer = type === 'box' && contents && contents.length > 0;
+                if (height && !isContainer) {
+                    style.height = height;
+                } else if (isContainer) {
+                    style.height = 'auto'; // Force auto height for containers
+                }
+
+                if (backgroundColor) style.backgroundColor = backgroundColor;
+                if (cornerRadius) {
+                     const radiusMap = { xs: '2px', sm: '4px', md: '8px', lg: '12px', xl: '16px', xxl: '20px' };
+                     style.borderRadius = radiusMap[cornerRadius] || cornerRadius;
+                }
+                if (component.background && component.background.type === 'linearGradient') {
+                    style.background = `linear-gradient(${component.background.angle || '0deg'}, ${component.background.startColor}, ${component.background.endColor})`;
+                }
+
+                let className = "relative ";
+                if (position === 'absolute') {
+                    className = "absolute ";
+                    if (offsetTop) style.top = offsetTop;
+                    if (offsetBottom) style.bottom = offsetBottom;
+                    if (offsetStart) style.left = offsetStart;
+                    if (offsetEnd) style.right = offsetEnd;
+                } else {
+                    if (offsetTop) style.top = offsetTop;
+                    if (offsetBottom) style.bottom = offsetBottom;
+                    if (offsetStart) style.marginLeft = offsetStart;
+                    if (offsetEnd) style.marginRight = offsetEnd;
+                }
+
+                const spaceMap = { xs: '8px', sm: '12px', md: '16px', lg: '50px', xl: '60px', xxl: '70px' };
+                if (margin) style.marginTop = spaceMap[margin] || margin;
+                if (paddingAll) style.padding = spaceMap[paddingAll] || paddingAll;
+                
+                const isClickable = !!action;
+                const ElementType = isClickable ? 'a' : 'div';
+                const actionProps = isClickable ? { href: action.uri, target: '_blank', className: 'cursor-pointer hover:opacity-90 transition-opacity block' } : {};
+
+                if (type === 'box') {
+                    style.display = 'flex';
+                    style.flexDirection = layout === 'horizontal' ? 'row' : 'column';
+                    if (component.justifyContent === 'center') style.justifyContent = 'center';
+                    else if (component.justifyContent === 'space-around') style.justifyContent = 'space-around';
+                    else if (component.justifyContent === 'space-between') style.justifyContent = 'space-between';
+                    else if (component.justifyContent === 'flex-end') style.justifyContent = 'flex-end';
+                    if (component.alignItems === 'center') style.alignItems = 'center';
+                    if (component.alignItems === 'flex-end') style.alignItems = 'flex-end';
+
+                    if (spacing) style.gap = spaceMap[spacing] || spacing;
+                    else if (layout === 'horizontal') style.gap = '8px'; 
+
+                    return (
+                        <ElementType key={index} className={`${className} overflow-hidden`} style={style} {...actionProps}>
+                            {contents && contents.map((child, i) => renderFlexComponent(child, i))}
+                        </ElementType>
+                    );
+                }
+
+                if (type === 'text') {
+                    className += " leading-tight break-words font-prompt";
+                    const sizeMapVal = { xxs: '10px', xs: '12px', sm: '14px', md: '16px', lg: '18px', xl: '20px', xxl: '24px', '3xl': '30px', '4xl': '36px', '5xl': '48px' };
+                    style.fontSize = sizeMapVal[size] || '16px';
+                    
+                    if (weight === 'bold') style.fontWeight = 'bold';
+                    if (component.style === 'italic') style.fontStyle = 'italic';
+                    if (component.decoration === 'underline') style.textDecoration = 'underline';
+                    
+                    if (align === 'center') style.textAlign = 'center';
+                    if (align === 'end') style.textAlign = 'right';
+                    
+                    if (color) style.color = color;
+                    if (component.wrap) className += " whitespace-normal"; else className += " whitespace-nowrap";
+
+                    if (contents && contents.length > 0) {
+                         return (
+                            <ElementType key={index} className={className} style={style} {...actionProps}>
+                                {contents.map((span, sIdx) => (
+                                    <span key={sIdx} style={{
+                                        fontSize: sizeMapVal[span.size] || 'inherit',
+                                        fontWeight: span.weight === 'bold' ? 'bold' : 'normal',
+                                        color: span.color || 'inherit',
+                                        fontStyle: span.style || 'normal',
+                                        textDecoration: span.decoration || 'none'
+                                    }}>{span.text}</span>
+                                ))}
+                            </ElementType>
+                         );
+                    }
+                    return <ElementType key={index} className={className} style={style} {...actionProps}>{text}</ElementType>;
+                }
+
+                if (type === 'image') {
+                    style.objectFit = aspectMode === 'cover' ? 'cover' : 'contain';
+                    if (aspectRatio) style.aspectRatio = aspectRatio.replace(':', '/');
+                    if (size === 'full') style.width = '100%'; else if (size) style.width = size;
+                    style.flexShrink = 0; 
+
+                    if (isClickable) {
+                         return <a key={index} {...actionProps} className={`${className} block`}><img src={url} style={style} className="block w-full h-full" loading="lazy" /></a>;
+                    }
+                    return <img key={index} src={url} className={className} style={style} loading="lazy" />;
+                }
+                
+                if (type === 'separator') return <div key={index} style={{width: '100%', height: '1px', backgroundColor: color || '#E5E7EB', margin: margin ? (spaceMap[margin] || margin) + ' 0' : '8px 0'}} />;
+                if (type === 'filler') return <div key={index} style={{flex: 1}} />;
+                return null;
+            };
+
+            return (
+                <div className="relative group/carousel w-full">
+                    <button onClick={scrollLeft} className={`absolute -left-7 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/50 backdrop-blur-sm shadow-md rounded-full flex items-center justify-center text-slate-700 hover:text-red-600 hover:scale-110 transition-all duration-300 ${canScrollLeft ? 'opacity-0 group-hover/carousel:opacity-100 visible' : 'opacity-0 invisible'}`}>
+                        <Icon name="chevron-left" size={30} />
+                    </button>
+
+                    <div ref={scrollRef} className="flex overflow-x-auto py-2 gap-3 snap-x w-full hide-scroll pl-1 scroll-smooth">
+                        {json.contents.map((bubble, i) => {
+                            const isCover = i === 0;
+                            if (isCover) {
+                                const bodyContents = bubble.body.contents;
+                                const heroImg = bubble.header?.contents?.[0]?.url || ""; 
+                                const bgPatternUrl = bodyContents[0]?.url;
+                                const titleImgUrl = bodyContents[1]?.url; 
+                                const dateText = bodyContents[2]?.text || (bodyContents[2]?.contents ? bodyContents[2].contents[0].text : "");
+                                const mascotUrl = bodyContents[3]?.url;
+                                const bgGradient = bubble.body.background;
+                                const gradientStyle = bgGradient ? { background: `linear-gradient(${bgGradient.angle}, ${bgGradient.startColor}, ${bgGradient.endColor})` } : {};
+
+                                return (
+
+                                    <div key={i} className="flex-shrink-0 snap-center rounded-2xl overflow-hidden shadow-sm border border-slate-100 relative flex flex-col bg-white" style={{height: '320px', aspectRatio: '3/4'}}>
+
+                                        <div className="bg-white pt-1 flex justify-center items-center h-[35px] relative z-20">
+                                            <img src={heroImg} className="h-[30px] object-contain" />
+                                        </div>
+
+                                        <div className="flex-1 relative overflow-hidden" style={gradientStyle}>
+                                            <div className="relative w-full h-full">
+                                                <img src={bgPatternUrl} className="absolute w-full h-full object-cover z-0" />
+                                                <div className="relative w-full h-full flex flex-col items-center" style={{top: '-10px'}}>
+                                                    <img src={titleImgUrl} className="w-[85%] object-contain z-10 " />
+                                                    <div className="absolute w-full text-center z-20" style={{top: '70px'}}>
+                                                        <p className="text-[10px] font-bold text-white drop-shadow-md">ประจำงวดวันที่ 16 พฤศจิกายน 2568</p>
+                                                    </div>
+                                                    <img src={mascotUrl} className="absolute w-[60%] object-contain z-30 py-[80px]" style={{bottom: '-50px'}} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            else if (i === 1 || i === 2) {
+                                const bodyContents = bubble.body.contents;
+                                
+                                const getCardData = (cardIndex) => {
+                                    const card = bodyContents[cardIndex];
+                                    if (!card) return null;
+
+                                    const headerUrl = card.contents?.[1]?.contents?.[0]?.url || "";
+                                    const numberRows = [];
+                                    const rowsContainer = card.contents?.[2]?.contents || [];
+                                    
+                                    rowsContainer.forEach(row => {
+                                        if (row.type === 'box' && row.layout === 'horizontal') {
+                                            const numbers = row.contents
+                                                .filter(c => c.type === 'text')
+                                                .map(c => ({ text: c.text, color: c.color || '#000000', weight: c.weight }));
+                                            if (numbers.length > 0) numberRows.push(numbers);
+                                        }
+                                    });
+
+                                    const desc = card.contents?.[3]?.contents?.[0]?.text || "";
+                                    
+                                    return { headerUrl, numberRows, desc };
+                                };
+
+                                const topCard = getCardData(0);
+                                const bottomCard = getCardData(1);
+
+                                return (
+                                    <div key={i} className="flex-shrink-0 snap-center rounded-2xl overflow-hidden shadow-sm border border-slate-100 relative flex flex-col bg-slate-50" style={{height: '320px', aspectRatio: '3/4'}}>
+                                        <div className="flex-1 p-2 pt-2 space-y-2 overflow-hidden hide-scroll" style={{height: '150px'}}>
+                                            
+                                            {topCard && (
+                                                <div className="bg-white rounded-xl  p-0 overflow-hidden border border-slate-100 shadow-sm flex flex-col">
+                                                    <div className="h-full w-full relative flex justify-center items-center shadow-sm bg-gradient-to-br from-slate-50 to-slate-100">
+                                                        <img src={topCard.headerUrl} className="h-full w-full object-contain relative z-10" />
+                                                    </div>
+
+                                                    <div className="pt-1 flex flex-col gap-1 justify-center items-center min-h-[50px]">
+                                                        {topCard.numberRows.map((row, rIdx) => (
+                                                            <div key={rIdx} className="flex gap-2 justify-center items-center">
+                                                                {row.map((num, nIdx) => (
+                                                                    <span key={nIdx} className="text-md font-bold text-slate-600 justify-center items-center leading-none">{num.text}</span>
+                                                                ))}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="pb-2 px-2 text-center">
+                                                        <p className="text-[10px] text-slate-500 truncate">{topCard.desc}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {bottomCard && (
+                                                <div className="bg-white rounded-xl p-0 overflow-hidden border border-slate-100 shadow-sm flex flex-col">
+                                                    <div className="h-full w-full relative flex justify-center items-center shadow-sm bg-gradient-to-br from-slate-50 to-slate-100">
+                                                        <img src={bottomCard.headerUrl} className="h-full w-full object-contain relative z-10" />
+                                                    </div>
+                                                    
+                                                    <div className="pt-1 flex flex-col gap-1 justify-center items-center min-h-[50px]">
+                                                        {bottomCard.numberRows.map((row, rIdx) => (
+                                                            <div key={rIdx} className="flex gap-2 justify-center items-center">
+                                                                {row.map((num, nIdx) => (
+                                                                    <span key={nIdx} className="text-md font-bold text-slate-600 justify-center items-center leading-none">{num.text}</span>
+                                                                ))}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    
+                                                    <div className="pb-2 px-2 text-right">
+                                                        <p className="text-[10px] text-slate-500 truncate">{bottomCard.desc}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                        </div>
+                                        
+                                        <div className="bg-white p-1 text-right border-t border-slate-100">
+                                             <p className="text-[9px] text-slate-400 pr-2">**เป็นความเชื่อส่วนบุคคล</p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div key={i} className="flex-shrink-0 snap-center rounded-2xl overflow-hidden shadow-sm border border-slate-100 relative flex flex-col bg-white" style={{height: '320px', aspectRatio: '3/4'}}>
+                                    {bubble.header && <div className="w-full flex-shrink-0">{renderFlexComponent(bubble.header, 'header')}</div>}
+                                    {bubble.body && <div className="flex-1 w-full h-full relative overflow-hidden space-y-2">{renderFlexComponent(bubble.body, 'body')}</div>}
+                                    {bubble.footer && <div className="w-full flex-shrink-0 absolute bottom-0 left-0 right-0 p-2 pointer-events-none">{renderFlexComponent(bubble.footer, 'footer')}</div>}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <button onClick={scrollRight} className={`absolute -right-7 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/50 backdrop-blur-sm shadow-md rounded-full flex items-center justify-center text-slate-700 hover:text-red-600 hover:scale-110 transition-all duration-300 ${canScrollRight ? 'opacity-0 group-hover/carousel:opacity-100 visible' : 'opacity-0 invisible'}`}>
+                        <Icon name="chevron-right" size={30} />
+                    </button>
+                </div>
+            );
+        };
+
+        const Type4StepRenderer = ({ json }) => {
+            if (!json) return null;
+            
+            const renderNode = (node, index) => {
+                if (!node) return null;
+                const key = index;
+                let style = {
+                    flex: node.flex, width: node.width, height: node.height, backgroundColor: node.backgroundColor, borderRadius: node.cornerRadius, borderColor: node.borderColor, borderWidth: node.borderWidth,
+                };
+
+                if (node.paddingAll) style.padding = node.paddingAll;
+                if (node.paddingTop) style.paddingTop = node.paddingTop;
+                if (node.paddingBottom) style.paddingBottom = node.paddingBottom;
+                if (node.paddingStart) style.paddingLeft = node.paddingStart;
+                if (node.paddingEnd) style.paddingRight = node.paddingEnd;
+
+                if (node.background && node.background.type === 'linearGradient') {
+                    style.background = `linear-gradient(${node.background.angle || '0deg'}, ${node.background.startColor}, ${node.background.endColor})`;
+                }
+
+                let positionClass = "relative ";
+                if (node.position === 'absolute') {
+                    positionClass = "absolute ";
+                    if (node.offsetTop) style.top = node.offsetTop;
+                    if (node.offsetBottom) style.bottom = node.offsetBottom;
+                    if (node.offsetStart) style.left = node.offsetStart;
+                    if (node.offsetEnd) style.right = node.offsetEnd;
+                }
+
+                let marginClass = "";
+                const marginMap = { xl: 'mt-4', lg: 'mt-3', md: 'mt-2', sm: 'mt-1', xs: 'mt-0.5' };
+                if (node.margin && marginMap[node.margin]) marginClass = marginMap[node.margin];
+
+                const isClickable = !!node.action;
+                const ElementType = isClickable ? 'a' : 'div';
+                const actionProps = isClickable ? { href: node.action.uri, target: '_blank', rel: 'noreferrer', className: 'cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95' } : {};
+
+                if (node.type === 'text') {
+                    style.color = node.color;
+                    let textClass = "break-words leading-tight ";
+                    const sizeMap = { xxs: 'text-[10px]', xs: 'text-xs', sm: 'text-sm', md: 'text-base', lg: 'text-lg', xl: 'text-xl', xxl: 'text-2xl', '3xl': 'text-3xl', '4xl': 'text-4xl', '5xl': 'text-5xl' };
+                    textClass += (sizeMap[node.size] || 'text-base') + " ";
+                    
+                    if (node.weight === 'bold') textClass += "font-bold ";
+                    if (node.style === 'italic') textClass += "italic ";
+                    if (node.decoration === 'underline') textClass += "underline ";
+                    
+                    if (node.wrap) {
+                        textClass += "text-left self-start ";
+                    } else if (node.color === '#ffffff' && node.weight === 'bold') {
+                        textClass += "text-center w-full h-full flex items-center justify-center "; marginClass = ""; 
+                    } else {
+                        if (node.align === 'center') textClass += "text-center "; else if (node.align === 'end') textClass += "text-right ";
+                        if (node.gravity === 'center') textClass += "self-center "; if (node.gravity === 'bottom') textClass += "self-end "; if (node.gravity === 'top') textClass += "self-start ";
+                    }
+                    return <ElementType key={key} style={style} className={`${positionClass} ${textClass} ${marginClass} ${actionProps.className || ''}`} {...actionProps}>{node.text}</ElementType>;
+                }
+
+                if (node.type === 'box') {
+                    let boxClass = "flex ";
+                    boxClass += node.layout === 'horizontal' ? "flex-row " : "flex-col ";
+                    if (node.justifyContent === 'center') boxClass += "justify-center "; else if (node.justifyContent === 'flex-end') boxClass += "justify-end "; else if (node.justifyContent === 'space-between') boxClass += "justify-between ";
+                    if (node.alignItems === 'center') boxClass += "items-center "; else if (node.alignItems === 'flex-end') boxClass += "items-end "; else if (node.alignItems === 'flex-start') boxClass += "items-start ";
+                    
+                    const gapMap = { xs: 'gap-1', sm: 'gap-2', md: 'gap-3', lg: 'gap-4', xl: 'gap-5' };
+                    if (node.spacing && gapMap[node.spacing]) boxClass += gapMap[node.spacing] + " ";
+
+                    return <ElementType key={key} style={style} className={`${positionClass} ${boxClass} ${marginClass} ${actionProps.className || ''}`} {...actionProps}>{node.contents?.map((child, i) => renderNode(child, i))}</ElementType>;
+                }
+
+                if (node.type === 'image') {
+                    const imgStyle = { ...style, objectFit: node.aspectMode === 'cover' ? 'cover' : 'contain' };
+                    if (node.aspectRatio) imgStyle.aspectRatio = node.aspectRatio.replace(':', '/');
+                    let imgClass = "max-w-full block ";
+                    if (node.gravity === 'center') imgClass += "self-center ";
+                    
+                    if (isClickable) {
+                         return <a key={key} {...actionProps} style={{ display: 'contents' }}><img src={node.url} style={imgStyle} className={`${positionClass} ${imgClass} ${marginClass} ${actionProps.className}`} /></a>
+                    }
+                    return <img key={key} src={node.url} style={imgStyle} className={`${positionClass} ${imgClass} ${marginClass}`} />;
+                }
+                if (node.type === 'filler') return <div key={key} style={{flex: 1}} />;
+                return null;
+            };
+
+            const headerStyle = {};
+            if (json.header?.background?.type === 'linearGradient') {
+                headerStyle.background = `linear-gradient(${json.header.background.angle}, ${json.header.background.startColor}, ${json.header.background.endColor})`;
+            } else if (json.header?.backgroundColor) {
+                headerStyle.backgroundColor = json.header.backgroundColor;
+            }
+            headerStyle.padding = 0; headerStyle.height = 'auto';
+
+            return (
+                <div className="bg-white w-full h-[500px] border border-slate-200 shadow-sm rounded-xl overflow-hidden flex flex-col">
+                    {json.header && (
+                        <div style={headerStyle} className="flex flex-col justify-center items-center relative flex-shrink-0 w-full">
+                            {json.header.contents.map((c, i) => {
+                                if (c.type === 'image') return <img key={i} src={c.url} className=" w-[200px] h-[45px] object-contain block" style={{aspectRatio:20/3}} />;
+                                return renderNode(c, i);
+                            })}
+                        </div>
+                    )}
+                    {json.hero && (
+                        <div className="relative w-full bg-black flex-shrink-0">
+                            {json.hero.type === 'video' ? (
+                                <div className="relative w-full" style={{aspectRatio: json.hero.aspectRatio ? json.hero.aspectRatio.replace(':','/') : '16/9'}}>
+                                    <img src={json.hero.altContent?.url || json.hero.previewUrl} className="w-full h-full object-cover opacity-90" />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors duration-300 group cursor-pointer">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 transition-transform duration-300 group-hover:scale-110">
+                                            <Icon name="play" size={25} className="text-white fill-white ml-1" />
+                                        </div>
+                                    </div>
+                                    {json.hero.action && (
+                                        <div className="absolute bottom-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center pointer-events-none z-10">
+                                            {json.hero.action.label} <Icon name="chevron-right" size={14} className="ml-1" />
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <img src={json.hero.url} className="w-full object-cover" style={{aspectRatio: json.hero.aspectRatio?.replace(':','/')}} />
+                            )}
+                        </div>
+                    )}
+                    {json.body && <div className="p-4 flex-1 hide-scroll">{renderNode(json.body)}</div>}
+                    {json.footer && <div className="p-4 pt-2 pb-10 border-t border-slate-50 flex justify-center flex-shrink-0">{renderNode(json.footer)}</div>}
+                </div>
+            )
+        };
+        
+        const Type5ProcessRenderer = ({ json }) => {
+            if (!json) return null;
+            const containerBox = json.body?.contents?.[0]; 
+            if (!containerBox) return null;
+            const stepsContainer = containerBox.contents?.find(c => c.type === "box" && c.layout === "horizontal");
+
+            const renderStepCircle = (boxNode) => {
+                if (!boxNode) return null;
+                const innerCircle = boxNode.contents?.[0]?.contents?.[0]; 
+                const circleStyle = {
+                    width: innerCircle?.width || '44px', height: innerCircle?.height || '44px', borderRadius: '50%', backgroundColor: innerCircle?.backgroundColor || 'transparent',
+                    border: innerCircle?.borderColor ? `${innerCircle.borderWidth || '1px'} solid ${innerCircle.borderColor}` : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+                };
+                const imgNode = innerCircle?.contents?.[0];
+                const hasImage = imgNode?.type === 'image';
+                const textNode = boxNode.contents?.[1];
+                const labelText = textNode?.contents?.[0]?.text || textNode?.text || "";
+
+                return (
+                    <div className="flex flex-col items-center relative z-10">
+                        <div style={circleStyle} className="shadow-sm">
+                            {hasImage && <img src={imgNode.url} style={{width: imgNode.size || '20px'}} className="object-cover" />}
+                            {!hasImage && <div className="w-2 h-2 rounded-full bg-white/20"></div>}
+                        </div>
+                        <span className="text-[10px] text-slate-600 mt-2 font-medium text-center max-w-[60px] leading-tight">{labelText}</span>
+                    </div>
+                );
+            };
+
+            const steps = stepsContainer?.contents?.filter(c => c.type === "box" && c.layout === "vertical") || [];
+
+            return (
+                <div className="bg-[#f9f5f2] w-full border border-slate-200 rounded-xl shadow-sm rounded-md overflow-hidden flex flex-col">
+                    {json.hero && (
+                        <div className="relative w-full bg-black">
+                            {json.hero.type === 'video' ? (
+                                <div className="relative w-full" style={{aspectRatio: json.hero.aspectRatio ? json.hero.aspectRatio.replace(':','/') : '16/9'}}>
+                                    <img src={json.hero.altContent?.url || json.hero.previewUrl} className="w-full h-full object-cover opacity-90" />
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors duration-300 group cursor-pointer ">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center  border border-white/30 transition-transform duration-300 group-hover:scale-110">
+                                            <Icon name="play" size={25} className="text-white fill-white ml-1" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <img src={json.hero.url} className="w-full object-cover" style={{aspectRatio: json.hero.aspectRatio?.replace(':','/')}} />
+                            )}
+                        </div>
+                    )}
+                    <div className="p-6 relative min-h-[150px] flex flex-col items-center">
+                        <div className="absolute top-[45px] left-0 right-0 mx-auto w-[200px] h-[3px] z-0 rounded-full" style={{ background: 'linear-gradient(90deg, #EAEAEA, #c0c0c0, #ff0000)' }}></div>
+                        <div className="flex justify-between w-full max-w-[280px] z-10 relative mt-2">
+                             {steps.map((step, idx) => <React.Fragment key={idx}>{renderStepCircle(step)}</React.Fragment>)}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Type6PortraitCarouselRenderer = ({ json }) => {
+            if (!json || json.type !== 'carousel') return null;
+            // ใช้ Custom Hook
+            const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } = useHorizontalScroll(310);
+
+            return (
+                <div className="relative group/carousel w-full">
+                    <button onClick={scrollLeft} className={`absolute -left-7 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/50 backdrop-blur-sm shadow-md rounded-full flex items-center justify-center text-slate-700 hover:text-red-600 hover:scale-110 transition-all duration-300 ${canScrollLeft ? 'opacity-0 group-hover/carousel:opacity-100 visible' : 'opacity-0 invisible'}`}>
+                        <Icon name="chevron-left" size={28} />
+                    </button>
+
+                    <div ref={scrollRef} className="flex overflow-x-auto py-2 gap-3 snap-x w-full hide-scroll pl-1 scroll-smooth">
+                        {json.contents.map((bubble, i) => (
+                            <div key={i} className="flex-shrink-0 snap-center rounded-xl overflow-hidden shadow-sm relative group cursor-pointer transition-transform hover:scale-[1.02]" style={{height: '500px', aspectRatio: '1/2'}}>
+                                {bubble.hero && <img src={bubble.hero.url} className="w-full h-full object-cover" loading="lazy" />}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4"></div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button onClick={scrollRight} className={`absolute -right-7 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/50 backdrop-blur-sm shadow-md rounded-full flex items-center justify-center text-slate-700 hover:text-red-600 hover:scale-110 transition-all duration-300 ${canScrollRight ? 'opacity-0 group-hover/carousel:opacity-100 visible' : 'opacity-0 invisible'}`}>
+                        <Icon name="chevron-right" size={28} />
+                    </button>
+                </div>
+            )
+        };
+
+        // --- Navbar ---
+        const Navbar = ({ setPage, currentPage }) => (
+            <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 px-6 py-4 flex justify-between items-center shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="text-[28px] md:text-[35px] font-bold bg-gradient-to-r from-black to-red-600 bg-clip-text text-transparent cursor-pointer tracking-tight" onClick={() => setPage('home')}>
+                        PROJECT L
+                    </div>
+                </div>
+                <div className="flex items-center gap-6">
+                    <div className="space-x-1 hidden md:block bg-slate-100/50 p-1 rounded-full border border-slate-200">
+                        {['home', 'flex', 'platform'].map(p => (
+                            <button key={p} onClick={() => setPage(p)} className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 capitalize ${currentPage === p ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{p}</button>
+                        ))}
+                    </div>
+                    <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Databricks Connected
+                    </div>
+                </div>
+            </nav>
+        );
+
+        // --- Platform Architecture Page (Detailed) ---
+        const PlatformPage = ({ setPage }) => {
+            const [activeSystem, setActiveSystem] = useState(1);
+            
+            // Mock Data for Attribution Chart
+            const attributionData = {
+                labels: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
+                datasets: [
+                    { label: 'Broadcast Sent (Volume)', data: [0, 5000, 15000, 2000, 0, 0, 0, 0], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)', type: 'bar', yAxisID: 'y1' },
+                    { label: 'Purchase Conversions ($)', data: [120, 150, 400, 2800, 1500, 800, 400, 300], borderColor: '#06c755', backgroundColor: 'rgba(6, 199, 85, 0.1)', fill: true, tension: 0.4, yAxisID: 'y' }
+                ]
+            };
+
+            const attributionOptions = {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Sales ($)' } },
+                    y1: { type: 'linear', display: false, position: 'right', grid: { drawOnChartArea: false } },
+                }
+            };
+
+            // NEW: Mock Data for A/B Testing Chart
+            const abTestData = {
+                labels: ['Content A (Generic)', 'Content B (Personalized)'],
+                datasets: [{
+                    label: 'Conversion Rate (%)',
+                    data: [1.8, 4.2],
+                    backgroundColor: ['#94a3b8', '#06c755'],
+                    borderRadius: 8,
+                    barThickness: 50
+                }]
+            };
+
+            const abTestOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: { 
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y + '% Conversion Rate';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        max: 6,
+                        title: { display: true, text: 'Conversion Rate (%)' },
+                        grid: { borderDash: [2, 4] }
+                    },
+                    x: { 
+                        grid: { display: false } 
+                    }
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 pt-28 pb-12 px-6">
+                    <div className="max-w-7xl mx-auto">
+                        
+                        {/* Header */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 border-b border-slate-200 pb-8">
+                            <div>
+                                <div className="flex items-center gap-2 mb-2 cursor-pointer text-slate-400 hover:text-slate-800 transition" onClick={() => setPage('home')}>
+                                    <Icon name="arrow-left" size={18} /> Back to Home
+                                </div>
+                                <h2 className="text-4xl font-bold text-slate-900">Platform Architecture</h2>
+                                <p className="text-slate-500 mt-2">Modern Data Stack Solution for LINE Broadcast Optimization</p>
+                            </div>
+                            <div className="mt-4 md:mt-0 flex gap-2">
+                                <span className="px-4 py-1.5 bg-blue-50 text-blue-700 font-bold rounded-full text-xs">v2.1 Stable</span>
+                                <span className="px-4 py-1.5 bg-green-50 text-green-700 font-bold rounded-full text-xs">Databricks Core</span>
+                            </div>
+                        </div>
+
+                        {/* System 1-2-3 Navigation Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                            {[
+                                { id: 1, title: "System 1: UID Flag Table", icon: "database", desc: "ฐานข้อมูลลูกค้าอัจฉริยะ พร้อมใช้ทันที", color: "blue" },
+                                { id: 2, title: "System 2: Audience Builder", icon: "users", desc: "เลือกกลุ่มเป้าหมาย & บันทึก History", color: "indigo" },
+                                { id: 3, title: "System 3: Content Library", icon: "image", desc: "จัดการ Media & Rich Messages", color: "purple" }
+                            ].map((sys) => (
+                                <div 
+                                    key={sys.id}
+                                    onClick={() => setActiveSystem(sys.id)}
+                                    className={`p-6 rounded-2xl border cursor-pointer transition-all duration-300 relative overflow-hidden group ${activeSystem === sys.id ? `bg-white border-${sys.color}-500 shadow-lg ring-1 ring-${sys.color}-500` : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'}`}
+                                >
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${activeSystem === sys.id ? `bg-${sys.color}-100 text-${sys.color}-600` : 'bg-slate-100 text-slate-500'}`}>
+                                        <Icon name={sys.icon} size={24} />
+                                    </div>
+                                    <h3 className={`text-lg font-bold ${activeSystem === sys.id ? 'text-slate-900' : 'text-slate-700'}`}>{sys.title}</h3>
+                                    <p className="text-sm text-slate-500 mt-1">{sys.desc}</p>
+                                    {activeSystem === sys.id && <div className={`absolute bottom-0 left-0 w-full h-1 bg-${sys.color}-500`}></div>}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Interactive Detail Section */}
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 mb-12 relative overflow-hidden min-h-[400px]">
+                            
+                            {/* System 1 Detail */}
+                            {activeSystem === 1 && (
+                                <div className="animate-fade-in">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg uppercase">Data Foundation</span>
+                                        <h3 className="text-2xl font-bold text-slate-800">UID Flag Table Process</h3>
+                                    </div>
+                                    <div className="grid md:grid-cols-2 gap-10">
+                                        <div>
+                                            <p className="text-slate-600 mb-6 leading-relaxed">
+                                                ระบบประมวลผลข้อมูลลูกค้าและติดป้าย (Flag) <strong>'Y' หรือ 'N'</strong> ตามเงื่อนไขธุรกิจ ทำให้มี Segments พร้อมใช้ทันทีโดยไม่ต้องเขียน SQL ใหม่ทุกครั้ง
+                                            </p>
+                                            <div className="space-y-4">
+                                                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <Icon name="check-circle" size={18} className="text-green-500 mt-0.5" />
+                                                    <div>
+                                                        <h4 className="font-bold text-sm text-slate-700">Flagging Logic</h4>
+                                                        <p className="text-xs text-slate-500">ระบุสถานะ Active/Inactive, RFM Score (High Spender, New User)</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <Icon name="table" size={18} className="text-blue-500 mt-0.5" />
+                                                    <div>
+                                                        <h4 className="font-bold text-sm text-slate-700">Output Table</h4>
+                                                        <p className="text-xs font-mono text-slate-500 mt-1">main.uid_boardcast_group.rounddate_20251201__uid_all_flags_full</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="space-y-4">
+                                            {/* Spark Job Code Block */}
+                                            <div className="bg-slate-900 rounded-xl p-5 font-mono text-xs text-slate-300 relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 p-2 bg-slate-800 rounded-bl-lg text-[10px] text-slate-400">Databricks Spark Job</div>
+                                                <div className="space-y-2">
+                                                    <div className="text-green-400"># 1) Generate Wide Flags</div>
+                                                    <div>df_flag = spark.table(source).withColumn("flag", lit("Y"))</div>
+                                                    <div className="text-green-400 mt-2"># 2) Join Conditions</div>
+                                                    <div>cond_map = &#123; "uid_rfm": "Segment", ... &#125;</div>
+                                                    <div className="text-green-400 mt-2"># 3) Final Master Table</div>
+                                                    <div>master_df.write.saveAsTable("master_uid_all_flags_full_v1")</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Inserted Mock Data Table */}
+                                            <div className="bg-slate-900 rounded-xl p-5 font-mono text-xs text-slate-300 relative overflow-hidden shadow-lg border border-slate-700">
+                                                <div className="absolute top-0 right-0 p-2 bg-slate-800 rounded-bl-lg text-[10px] text-slate-400 flex items-center gap-2">
+                                                    <div className="flex space-x-1">
+                                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                                    </div>
+                                                    preview_uid_flags.csv
+                                                </div>
+                                                <div className="mt-4 overflow-x-auto">
+                                                    <table className="w-full text-left">
+                                                        <thead>
+                                                            <tr className="text-[#06c755] border-b border-slate-700">
+                                                                <th className="pb-2 pr-4">UID</th>
+                                                                <th className="pb-2 pr-4">Is_Active</th>
+                                                                <th className="pb-2 pr-4">High_Spender</th>
+                                                                <th className="pb-2 pr-4">Last_30d</th>
+                                                                <th className="pb-2">Segment</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="text-[10px] text-slate-400">
+                                                            <tr className="border-b border-slate-800/50">
+                                                                <td className="py-2 pr-4">U823...a1b</td>
+                                                                <td className="py-2 pr-4 text-green-400">Y</td>
+                                                                <td className="py-2 pr-4 text-green-400">Y</td>
+                                                                <td className="py-2 pr-4 text-red-400">N</td>
+                                                                <td className="py-2 text-blue-400">VIP_Dormant</td>
+                                                            </tr>
+                                                            <tr className="border-b border-slate-800/50">
+                                                                <td className="py-2 pr-4">U912...c4d</td>
+                                                                <td className="py-2 pr-4 text-green-400">Y</td>
+                                                                <td className="py-2 pr-4 text-red-400">N</td>
+                                                                <td className="py-2 pr-4 text-green-400">Y</td>
+                                                                <td className="py-2 text-blue-400">New_Active</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td className="py-2 pr-4">U104...e5f</td>
+                                                                <td className="py-2 pr-4 text-red-400">N</td>
+                                                                <td className="py-2 pr-4 text-red-400">N</td>
+                                                                <td className="py-2 pr-4 text-red-400">N</td>
+                                                                <td className="py-2 text-blue-400">Churned</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* System 2 Detail */}
+                            {activeSystem === 2 && (
+                                <div className="animate-fade-in">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg uppercase">Management</span>
+                                        <h3 className="text-2xl font-bold text-slate-800">Audience Builder Platform v2.1</h3>
+                                    </div>
+                                    <div className="grid md:grid-cols-2 gap-10">
+                                        <div>
+                                            <p className="text-slate-600 mb-6 leading-relaxed">
+                                                เครื่องมือสำหรับทีม Broadcast เพื่อเลือกกลุ่มเป้าหมาย (Filter UID Flags) และ <strong>บันทึกประวัติการส่ง (History)</strong> อย่างเป็นระบบ
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                                <div className="p-4 border border-slate-200 rounded-xl bg-white shadow-sm">
+                                                    <div className="text-xs text-slate-400 uppercase font-bold mb-2">Core Module</div>
+                                                    <div className="font-mono text-sm font-bold text-indigo-600">audience_core2.py</div>
+                                                    <p className="text-xs text-slate-500 mt-1">Logic การ Include/Exclude และ Gen ID</p>
+                                                </div>
+                                                <div className="p-4 border border-slate-200 rounded-xl bg-white shadow-sm">
+                                                    <div className="text-xs text-slate-400 uppercase font-bold mb-2">Job Runner</div>
+                                                    <div className="font-mono text-sm font-bold text-indigo-600">audience_jobs.py</div>
+                                                    <p className="text-xs text-slate-500 mt-1">Run Batch Processing</p>
+                                                </div>
+                                            </div>
+                                            <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                                                <h4 className="font-bold text-sm text-indigo-800 mb-1">Key Tables</h4>
+                                                <ul className="text-xs text-indigo-600 space-y-1 font-mono">
+                                                    <li>• main.uid_boardcast_group.audience_history</li>
+                                                    <li>• main.uid_boardcast_group.broadcast_job_config</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 relative">
+                                            <div className="absolute -top-3 -right-3 bg-indigo-500 text-white text-[10px] px-2 py-1 rounded shadow">Simulation</div>
+                                            <h4 className="font-bold text-sm text-slate-700 mb-3 border-b pb-2">Audience Job Config</h4>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-slate-500">Broadcast ID:</span>
+                                                    <span className="font-mono font-bold">BC20251219_01</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-slate-500">Includes:</span>
+                                                    <span className="font-mono bg-green-100 text-green-700 px-1 rounded">['Active', 'High_Spender']</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="text-slate-500">Excludes:</span>
+                                                    <span className="font-mono bg-red-100 text-red-700 px-1 rounded">['Purchased_24h']</span>
+                                                </div>
+                                                <div className="mt-4 pt-3 border-t border-slate-100">
+                                                    <button className="w-full py-1.5 bg-slate-800 text-white text-xs rounded hover:bg-slate-700 transition">Run Job & Save History</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* System 3 Detail */}
+                            {activeSystem === 3 && (
+                                <div className="animate-fade-in">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-lg uppercase">Content Engine</span>
+                                        <h3 className="text-2xl font-bold text-slate-800">Broadcast Content Library</h3>
+                                    </div>
+                                    <div className="grid md:grid-cols-12 gap-8">
+                                        <div className="md:col-span-7">
+                                            <p className="text-slate-600 mb-6">
+                                                จัดการ Media Assets และ Rich Messages (JSON Template) พร้อมผูกเข้ากับ Broadcast ID เพื่อสร้าง "ชุดคอนเทนต์" ที่พร้อมส่ง
+                                            </p>
+                                            
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-xs">1</div>
+                                                    <div className="flex-1 border border-slate-200 rounded p-2 text-sm">
+                                                        <span className="font-bold text-slate-700">media_library.py</span>
+                                                        <div className="text-xs text-slate-500">Table: media_assets (File Path, Tag, Signed URL)</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-center"><Icon name="arrow-down" size={16} className="text-slate-300" /></div>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-xs">2</div>
+                                                    <div className="flex-1 border border-slate-200 rounded p-2 text-sm">
+                                                        <span className="font-bold text-slate-700">rich_library.py</span>
+                                                        <div className="text-xs text-slate-500">Table: rich_messages (JSON Template + Media IDs)</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-center"><Icon name="arrow-down" size={16} className="text-slate-300" /></div>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-8 h-8 rounded bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-xs">3</div>
+                                                    <div className="flex-1 border border-slate-200 rounded p-2 text-sm border-l-4 border-l-purple-500 bg-purple-50/30">
+                                                        <span className="font-bold text-slate-700">broadcast_content.py</span>
+                                                        <div className="text-xs text-slate-500">Table: content_sets & content_boxes (Join with Broadcast ID)</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="md:col-span-5 flex flex-col justify-center">
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-center">
+                                                <h4 className="font-bold text-slate-700 mb-2">Integration Point</h4>
+                                                <p className="text-xs text-slate-500 mb-4">Content Layer เชื่อมกับ Audience Layer ผ่าน Key นี้</p>
+                                                <div className="bg-white border-2 border-dashed border-slate-300 p-3 rounded-lg font-mono text-lg font-bold text-slate-800">
+                                                    broadcast_id
+                                                </div>
+                                                <div className="mt-4 flex justify-between text-xs text-slate-400">
+                                                    <span>Audience Job</span>
+                                                    <Icon name="link" size={14} />
+                                                    <span>Content Set</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Data Analysis & Attribution Section */}
+                        <div className="grid md:grid-cols-12 gap-8 mb-12">
+                            <div className="md:col-span-4">
+                                <h3 className="text-2xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                    <Icon name="bar-chart-2" className="text-green-600" /> Analysis & Attribution
+                                </h3>
+                                <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+                                    วิเคราะห์ผลลัพธ์เชิงเปรียบเทียบ โดยการเชื่อมโยงข้อมูล <strong>Broadcast Log</strong> กับ <strong>Transaction Data</strong> เพื่อตอบคำถาม:
+                                </p>
+                                <ul className="space-y-3 mb-6">
+                                    {['UID นี้ได้รับ Rich Message ตัวไหน?', 'ส่งไปแล้วกี่ครั้ง?', 'ซื้อสินค้าหลังจากได้รับข้อความภายในกี่นาที?'].map((q, i) => (
+                                        <li key={i} className="flex items-start gap-3 bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                            <Icon name="help-circle" size={16} className="text-blue-500 mt-0.5" />
+                                            <span className="text-sm text-slate-700">{q}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div className="md:col-span-8 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h4 className="font-bold text-slate-800 text-sm">Real-time Conversion Attribution</h4>
+                                    <div className="flex gap-2">
+                                        <span className="flex items-center text-[10px] text-slate-500"><div className="w-2 h-2 bg-blue-400 rounded-full mr-1"></div> Broadcast Volume</span>
+                                        <span className="flex items-center text-[10px] text-slate-500"><div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div> Sales ($)</span>
+                                    </div>
+                                </div>
+                                <div className="h-[250px] w-full">
+                                    <ChartComponent id="attributionChart" type="bar" data={attributionData} options={attributionOptions} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Decision Support Dashboard */}
+                        <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-12 mb-12 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-green-600 rounded-full filter blur-[100px] opacity-20"></div>
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-end mb-8">
+                                    <div>
+                                        <h3 className="text-3xl font-bold text-white mb-2">Decision Support Dashboard</h3>
+                                        <p className="text-slate-400 text-sm">Metrics สำคัญเพื่อการตัดสินใจในรอบ Broadcast ถัดไป</p>
+                                    </div>
+                                    <button className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition flex items-center gap-2">
+                                        <Icon name="download" size={14} /> Export Report
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                    {[
+                                        { label: "Total Reach", val: "1.2M", change: "+12%", color: "text-white" },
+                                        { label: "Conversion Rate", val: "2.8%", change: "+0.5%", color: "text-green-400" },
+                                        { label: "Cost per Action", val: "฿45", change: "-10%", color: "text-blue-400" },
+                                        { label: "ROI", val: "4.5x", change: "+Tracked", color: "text-yellow-400" }
+                                    ].map((metric, i) => (
+                                        <div key={i} className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 backdrop-blur-sm">
+                                            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-2">{metric.label}</p>
+                                            <h4 className={`text-3xl font-bold ${metric.color} mb-1`}>{metric.val}</h4>
+                                            <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">{metric.change} vs Last Round</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* NEW SECTION: A/B Testing & Optimization */}
+                        <div className="grid md:grid-cols-12 gap-8 mb-16 items-center bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-2 h-full bg-purple-500"></div>
+                            <div className="md:col-span-5">
+                                <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full mb-4">Content Optimization Engine</span>
+                                <h3 className="text-2xl font-bold text-slate-900 mb-4">A/B Testing Capability</h3>
+                                <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+                                    ระบบรองรับการทดสอบประสิทธิภาพของ <strong>Content Set</strong> ที่แตกต่างกัน (เช่น รูปภาพ, ข้อความ, หรือเวลาที่ส่ง) กับกลุ่มเป้าหมายย่อย (Sample Size) ก่อนส่งจริง
+                                </p>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs font-bold">A</div>
+                                        <span className="text-sm text-slate-600">Generic Content (Broadcast ทั่วไป)</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs font-bold">B</div>
+                                        <span className="text-sm text-slate-900 font-medium">Personalized Content (ระบุชื่อ/สินค้า)</span>
+                                    </div>
+                                </div>
+                                <div className="mt-8 p-4 bg-green-50 rounded-xl border border-green-100">
+                                    <p className="text-xs text-green-800 font-bold flex items-center gap-2">
+                                        <Icon name="trending-up" size={16} /> 
+                                        Result: Option B +133% Conversion
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="md:col-span-7 h-[300px]">
+                                <div className="bg-slate-50 p-6 rounded-2xl h-full border border-slate-100">
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 text-center">Conversion Rate Comparison</h4>
+                                    <div className="h-[220px]">
+                                        <ChartComponent id="abTestChart" type="bar" data={abTestData} options={abTestOptions} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Next Steps Roadmap */}
+                        <div className="max-w-4xl mx-auto text-center">
+                            <h3 className="text-2xl font-bold text-slate-900 mb-8">Next Steps & Future Roadmap</h3>
+                            <div className="relative flex flex-col md:flex-row justify-center items-start gap-8">
+                                <div className="flex-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative group hover:-translate-y-1 transition-transform">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-blue-500 rounded-full text-white flex items-center justify-center font-bold text-xs ring-4 ring-white">1</div>
+                                    <h4 className="font-bold text-slate-800 mt-2 mb-2">Automated Optimization</h4>
+                                    <p className="text-sm text-slate-500">นำ AI มาช่วยเลือก Segment และ Content แบบอัตโนมัติ (Predictive Targeting)</p>
+                                </div>
+                                <div className="hidden md:block w-12 h-0.5 bg-slate-300 mt-12"></div>
+                                <div className="flex-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative group hover:-translate-y-1 transition-transform opacity-70 hover:opacity-100">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-slate-300 rounded-full text-white flex items-center justify-center font-bold text-xs ring-4 ring-white">2</div>
+                                    <h4 className="font-bold text-slate-800 mt-2 mb-2">Cross-Channel Data</h4>
+                                    <p className="text-sm text-slate-500">ขยายการ Attribution ไปยังช่องทางอื่น เช่น Web Traffic และ Social Media Ads</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Flex Page (Restored Full Version) ---
+        const FlexPage = ({ setPage }) => {
+            const [selectedJson, setSelectedJson] = useState(null);
+
+            // Re-using the Popup JSON logic from original code (simulated)
+            // Note: This 'PopupLotteryJson' serves as the "Display JSON" in the modal.
+            // It can be different from the 'jsonCode' used for rendering if needed.
+            const PopupLotteryJson = { "type": "bubble", "size": "giga", "body": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "This is the JSON code for copying/displaying", "weight": "bold", "align": "center" }] } }; 
+            // ... (Normally we would inject the full JSONs here)
+
+            const flexItems = [
+                // jsonCode: ใช้สำหรับการ Render กราฟิกบนหน้าเว็บ (UI Preview)
+                // popupJson: ใช้สำหรับแสดงโค้ดใน Modal เมื่อกดปุ่ม "<> JSON" (ถ้าไม่ใส่ จะใช้ jsonCode แทน)
+                { id: 1, title: "Lottery Plus Campaign", type: "Video", desc: "การเลือกใช้วิดีโอรีวิวสินค้าและปุ่มที่นำไปสู่สินค้าต่างๆ เพื่อเพิ่มความน่าสนใจ และช่วยกระตุ้นการอยากซื้อให้กับลูกค้ามากขึ้น", jsonCode: FLEX_DATA.lotteryJson, popupJson: PopupLotteryJson, renderer: 'type1' },
+                { id: 4, title: "Register Steps", type: "Vertical Timeline", desc: "เป็นช่องทางที่รวบรวมสินค้าแนะนำที่มีความน่าเชื่อถือ เพื่อให้ลูกค้าได้เข้าถึงสินค้าที่ต้องการได้อย่างรวดเร็ว โดยจะมีการอัปเดตสินค้าอย่างสม่ำเสมอ เพื่อไม่ให้พลาดโอกาสสำคัญ", jsonCode: FLEX_DATA.lotteryJson4, popupJson: PopupLotteryJson, renderer: 'type4' },
+                { id: 6, title: "Jidrid Collection", type: "Portrait Carousel", desc: "Carousel แบบแนวตั้ง (1:2 Aspect Ratio) สำหรับโชว์คอลเลคชั่นรูปภาพเต็มจอ", jsonCode: FLEX_DATA.lotteryJson6, popupJson: PopupLotteryJson, renderer: 'type6' },
+                { id: 2, title: "Lottery Plus Carousel", type: "Carousel", desc: "แนะนำสินค้า การที่ได้เจอสินค้าที่ตรงใจ จะช่วยให้ลูกค้าสามารถเลือกซื้อสินค้าที่ต้องการได้อย่างสะดวก เพิ่มโอกาสในการซื้อได้มากขึ้น", jsonCode: FLEX_DATA.lotteryJson2, popupJson: PopupLotteryJson, renderer: 'type2' },
+                { id: 3, title: "Lucky Numbers", type: "Carousel", desc: "ดีไซน์ใหม่ 2025: 1 การ์ดรวมผลรางวัล 2 เจ้า จัดวางแบบ Stack พร้อม Gradient Background", jsonCode: FLEX_DATA.lotteryJson3, popupJson: PopupLotteryJson,renderer: 'type3' },
+                { id: 5, title: "Buying Process", type: "Horizontal Timeline", desc: "Process Flow แนวนอน แสดงสถานะการสั่งซื้อพร้อมเส้น Progress ไล่เฉดสี", jsonCode: FLEX_DATA.lotteryJson5, popupJson: PopupLotteryJson,renderer: 'type5' },
+            ];
+
+            return (
+                <div className="min-h-screen bg-slate-50 pt-28 pb-12 px-6">
+                    {selectedJson && (
+                        <JsonModal 
+                            title={selectedJson.title} 
+                            // Logic: ถ้ามี popupJson ให้ใช้ popupJson ถ้าไม่มีให้ใช้ jsonCode
+                            code={selectedJson.popupJson || selectedJson.jsonCode} 
+                            onClose={() => setSelectedJson(null)} 
+                        />
+                    )}
+                    <div className="max-w-7xl mx-auto">
+                        <div className="flex items-center mb-8 cursor-pointer text-slate-400 hover:text-slate-800 transition" onClick={() => setPage('home')}>
+                            <Icon name="arrow-left" size={20} className="mr-2" /> Back to Home
+                        </div>
+                        <div className="flex justify-between items-end mb-10">
+                            <div>
+                                <h2 className="text-4xl font-bold text-slate-900 mb-2">Flex Templates Gallery</h2>
+                                <p className="text-slate-500">รวมรูปแบบ JSON Message ดีไซน์พิเศษสำหรับธุรกิจ</p>
+                            </div>
+                            
+                            {/* Removed New Template Button as requested */}
+                        </div>
+                        
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
+                            {flexItems.map((item) => (
+                                <div key={item.id} className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl hover:border-red-100 hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group">
+                                    <div className={`bg-slate-200 p-6 flex justify-center items-center overflow-hidden border-b border-slate-100 ${[2, 3, 5].includes(item.id) ? 'h-[380px]' : 'h-[560px]'}`}>
+                                        <div className="w-full max-w-[300px] scale-95 group-hover:scale-100 transition-transform duration-500">
+                                            {item.renderer === 'type1' && <LotteryFlexRenderer json={item.jsonCode} />}
+                                            {item.renderer === 'type2' && <Type2CarouselRenderer json={item.jsonCode} />}
+                                            {item.renderer === 'type3' && <Type3CarouselRenderer json={item.jsonCode} />}
+                                            {item.renderer === 'type4' && <Type4StepRenderer json={item.jsonCode} />}
+                                            {item.renderer === 'type5' && <Type5ProcessRenderer json={item.jsonCode} />}
+                                            {item.renderer === 'type6' && <Type6PortraitCarouselRenderer json={item.jsonCode} />}
+                                        </div>
+                                    </div>
+                                    <div className="p-6 flex flex-col flex-1">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <h3 className="font-bold text-lg text-slate-900 truncate leading-tight">{item.title}</h3>
+                                            <span className="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-500 rounded uppercase tracking-wide border border-slate-200 mt-0.5">{item.type}</span>
+                                        </div>
+                                        
+                                        <p className="text-sm text-slate-500 leading-normal mb-6 line-clamp-2">{item.desc}</p>
+                                        
+                                        <div className="mt-auto grid grid-cols-2 gap-3">
+                                            <button onClick={() => setSelectedJson(item)} className="py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 hover:border-slate-300 transition flex items-center justify-center">
+                                                <Icon name="code" size={16} className="mr-2" /> JSON
+                                            </button>
+                                            <a href="https://developers.line.biz/flex-simulator/" target="_blank" rel="noreferrer" className="py-2.5 rounded-xl bg-red-600 text-white font-medium text-sm hover:bg-red-700 transition flex items-center justify-center shadow-lg shadow-red-200">
+                                                Select <Icon name="arrow-right" size={16} className="ml-2" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const HomePage = ({ setPage }) => (
+            <div className="min-h-screen flex flex-col justify-center items-center pt-24 pb-12 px-4 bg-[url('https://cdn.pixabay.com/photo/2021/11/14/18/36/telework-6795505_1280.jpg')] bg-cover bg-center relative">
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm"></div>
+                <div className="text-center w-full max-w-5xl animate-fade-in-up relative z-10 flex flex-col items-center">
+                    <span className="inline-block py-1.5 px-4 rounded-full bg-red-50 text-red-600 text-xs font-bold tracking-widest mb-6 border border-red-100 shadow-sm uppercase">Marketing Tool</span>
+                    <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
+                        Line Broadcast <br className="hidden md:block" />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-600">Data Platform</span>
+                    </h1>
+                    <p className="text-slate-500 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
+                        ระบบจัดการข้อมูลลูกค้า (CDP) และออกแบบ Flex Message อัจฉริยะ เชื่อมต่อ Database เพื่อการบรอดแคสต์ที่แม่นยำที่สุด
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-6 w-full max-w-4xl mx-auto">
+                        <div onClick={() => setPage('flex')} className="group bg-white p-8 rounded-3xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-red-100 hover:-translate-y-1 transition-all cursor-pointer text-left relative overflow-hidden">
+                            <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-6 relative z-10 group-hover:scale-110 transition-transform"><Icon name="smartphone" size={28} /></div>
+                            <h3 className="text-2xl font-bold text-slate-800 mb-2 relative z-10">Flex Templates</h3>
+                            <p className="text-slate-500 relative z-10 text-sm">คลัง 6 รูปแบบข้อความ JSON ที่พร้อมใช้งาน</p>
+                            <div className="mt-6 flex items-center text-red-600 font-bold text-sm relative z-10 group-hover:translate-x-2 transition">Explore UI <Icon name="arrow-right" size={16} className="ml-2" /></div>
+                        </div>
+                        <div onClick={() => setPage('platform')} className="group bg-white p-8 rounded-3xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-blue-100 hover:-translate-y-1 transition-all cursor-pointer text-left relative overflow-hidden">
+                            <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 relative z-10 group-hover:scale-110 transition-transform"><Icon name="database" size={28} /></div>
+                            <h3 className="text-2xl font-bold text-slate-800 mb-2 relative z-10">Data Architecture</h3>
+                            <p className="text-slate-500 relative z-10 text-sm">โครงสร้างระบบการไหลของข้อมูล (Databricks)</p>
+                            <div className="mt-6 flex items-center text-blue-600 font-bold text-sm relative z-10 group-hover:translate-x-2 transition">View System <Icon name="arrow-right" size={16} className="ml-2" /></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            const [page, setPage] = useState('home');
+            useEffect(() => { window.scrollTo(0, 0); }, [page]);
+            return (
+                <div className="antialiased selection:bg-red-100 selection:text-red-900">
+                    <Navbar setPage={setPage} currentPage={page} />
+                    <main>
+                        {page === 'home' && <HomePage setPage={setPage} />}
+                        {page === 'flex' && <FlexPage setPage={setPage} />}
+                        {page === 'platform' && <PlatformPage setPage={setPage} />}
+                    </main>
+                    <footer className="bg-white border-t border-slate-200 text-slate-400 py-10 text-center text-sm">
+                        <p className="font-medium">Broadcast Data Platform (Mockup)</p>
+                        <p className="mt-2 text-xs">Internal Tool for CRM & Marketing Team</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

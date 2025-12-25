@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Broadcast Data Platform - Interactive Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        .step-connector::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: 2rem;
+            height: 2px;
+            background-color: #cbd5e1;
+            transform: translateY(-50%);
+            z-index: 0;
+        }
+
+        .last-step::after {
+            display: none;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .active-tab {
+            border-bottom: 3px solid #06c755;
+            color: #06c755;
+            font-weight: 700;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutral Background (#f8fafc) with LINE Green Accents (#06c755) and Data Blue (#3b82f6) for visualizations. -->
+    <!-- Application Structure Plan: 
+         1. Hero Section: High-level overview and value prop, enhanced with TTS (Gemini API).
+         2. The Problem (Blind Spot): Interactive cards explaining the current limitations.
+         3. The Solution (Architecture): A visual flow diagram using HTML/CSS illustrating the data pipeline.
+         4. Core Modules (Interactive Tabs): Detailed breakdown of the 3 key components with simulated data/visuals for each, with Audience Builder enhanced by LLM content generation (Gemini API).
+         5. Impact Dashboard (Simulation): A toggle-able section showing "Before" vs "After" metrics to demonstrate ROI and decision support.
+         6. Future Roadmap: A timeline view of Phase 1 and 2.
+         This structure moves from the "Why" (Problem) to the "How" (Solution/Modules) and finally the "What" (Impact/Future), guiding the user through the narrative logically.
+    -->
+    <!-- Visualization & Content Choices:
+         - Hero Section: Text-to-Speech summary using gemini-2.5-flash-preview-tts.
+         - Problem: Text cards with icons to clearly list pain points.
+         - Solution: Flowchart-style HTML layout to show the tech stack.
+         - Modules: 
+            - UID Flag: Mock Data Table (HTML).
+            - Audience Builder: Mock Interface controls + Content Generation using gemini-2.5-flash-preview-09-2025.
+            - Analytics: Chart.js Line Chart to show Attribution.
+         - Impact: Chart.js Bar Charts comparing conversion rates (Before vs After) to quantify value.
+         - Roadmap: Vertical Timeline for clear progression.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="antialiased">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-layer-group text-[#06c755] text-2xl mr-3"></i>
+                    <span class="font-bold text-xl text-slate-800">Line Broadcast Data Platform</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#problem" class="text-slate-600 hover:text-[#06c755] transition">ปัญหา (Problem)</a>
+                    <a href="#solution" class="text-slate-600 hover:text-[#06c755] transition">โซลูชัน (Solution)</a>
+                    <a href="#modules" class="text-slate-600 hover:text-[#06c755] transition">ฟังก์ชัน (Modules)</a>
+                    <a href="#impact" class="text-slate-600 hover:text-[#06c755] transition">ผลลัพธ์ (Impact)</a>
+                    <a href="#roadmap" class="text-slate-600 hover:text-[#06c755] transition">อนาคต (Future)</a>
+                </div>
+                <!-- Mobile Menu Button (Hamburger) -->
+                 <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-btn" class="text-slate-600 focus:outline-none">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden pb-4">
+                 <a href="#problem" class="block py-2 text-slate-600 hover:text-[#06c755]">ปัญหา (Problem)</a>
+                 <a href="#solution" class="block py-2 text-slate-600 hover:text-[#06c755]">โซลูชัน (Solution)</a>
+                 <a href="#modules" class="block py-2 text-slate-600 hover:text-[#06c755]">ฟังก์ชัน (Modules)</a>
+                 <a href="#impact" class="block py-2 text-slate-600 hover:text-[#06c755]">ผลลัพธ์ (Impact)</a>
+                 <a href="#roadmap" class="block py-2 text-slate-600 hover:text-[#06c755]">อนาคต (Future)</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="bg-gradient-to-br from-slate-50 to-slate-100 py-16 sm:py-24">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <span class="inline-block px-4 py-1 rounded-full bg-green-100 text-[#06c755] font-semibold text-sm mb-4">Strategic Data Initiative</span>
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
+                ยกระดับประสิทธิภาพการสื่อสารผ่าน LINE <br/>
+                <span class="text-[#06c755]">สู่การเติบโตของธุรกิจด้วย Data Platform</span>
+            </h1>
+            <p class="text-xl text-slate-600 max-w-3xl mx-auto mb-10" id="tts-summary-text">
+                เปลี่ยนจากการ 'คาดเดา' เป็นการ 'ตัดสินใจอย่างมีข้อมูล' ด้วยแพลตฟอร์มที่เชื่อมโยง Broadcast กับยอดขายจริง และสร้าง Personalization ที่แม่นยำ
+            </p>
+            <div class="flex justify-center gap-4 flex-wrap">
+                <a href="#impact" class="bg-[#06c755] text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-600 transition shadow-lg hover:shadow-xl">
+                    ดูผลลัพธ์ ROI
+                </a>
+                <button onclick="playSummaryTTS()" id="tts-button" class="bg-indigo-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-600 transition shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50" disabled>
+                     <i class="fa-solid fa-volume-high"></i>
+                     <span>✨ ฟังสรุปด้วยเสียง</span>
+                </button>
+                <a href="#solution" class="bg-white text-slate-700 px-8 py-3 rounded-lg font-semibold border border-slate-300 hover:bg-slate-50 transition">
+                    ดูสถาปัตยกรรมระบบ
+                </a>
+            </div>
+            <p class="text-sm text-slate-500 mt-4 hidden" id="tts-status">กำลังเตรียมเสียง... กรุณารอสักครู่</p>
+        </div>
+    </header>
+
+    <!-- Section 1: The Problem (Blind Spot) -->
+    <section id="problem" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900">ปัญหา: การบรอดแคสต์แบบ "Blind Spot"</h2>
+                <p class="mt-4 text-lg text-slate-600">ปัจจุบันเรากำลังทำงานเหมือนมีจุดบอด ที่ทำให้ไม่สามารถวัดความคุ้มค่าของการลงทุนได้จริง</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Problem Card 1 -->
+                <div class="bg-slate-50 p-8 rounded-xl border border-slate-100 card-hover transition duration-300 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <i class="fa-solid fa-eye-slash text-6xl"></i>
+                    </div>
+                    <div class="bg-red-100 w-12 h-12 rounded-lg flex items-center justify-center mb-6 text-red-600">
+                        <i class="fa-solid fa-magnifying-glass-chart text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Attribution Gap</h3>
+                    <p class="text-slate-600">
+                        เราไม่รู้ว่าข้อความถูกส่งถึงใครบ้าง (UID ไหน) และลูกค้าได้รับไปแล้วกี่ครั้ง ทำให้เกิดความซ้ำซ้อนและรบกวนลูกค้า (Spamming)
+                    </p>
+                </div>
+
+                <!-- Problem Card 2 -->
+                <div class="bg-slate-50 p-8 rounded-xl border border-slate-100 card-hover transition duration-300 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <i class="fa-solid fa-link-slash text-6xl"></i>
+                    </div>
+                    <div class="bg-orange-100 w-12 h-12 rounded-lg flex items-center justify-center mb-6 text-orange-600">
+                        <i class="fa-solid fa-broken-chain text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Missing Conversion Link</h3>
+                    <p class="text-slate-600">
+                        ขาดกลไกเชื่อมโยงระหว่าง "เวลาที่ส่ง" กับ "เวลาที่ซื้อ" ทำให้ไม่สามารถระบุได้ว่ายอดขายเกิดจาก Broadcast จริงหรือไม่
+                    </p>
+                </div>
+
+                <!-- Problem Card 3 -->
+                <div class="bg-slate-50 p-8 rounded-xl border border-slate-100 card-hover transition duration-300 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <i class="fa-solid fa-sack-dollar text-6xl"></i>
+                    </div>
+                    <div class="bg-yellow-100 w-12 h-12 rounded-lg flex items-center justify-center mb-6 text-yellow-600">
+                        <i class="fa-solid fa-chart-pie text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Unclear ROI</h3>
+                    <p class="text-slate-600">
+                        เมื่อไม่รู้ที่มาที่ไป ก็ไม่สามารถวัดผลตอบแทนจากการลงทุน (ROI) ที่แม่นยำได้ นำไปสู่การใช้งบประมาณอย่างไม่มีประสิทธิภาพ
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2: The Solution (Architecture) -->
+    <section id="solution" class="py-16 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-12">
+                <h2 class="text-3xl font-bold text-slate-900">Solution: Modern Data Stack Architecture</h2>
+                <p class="mt-4 text-lg text-slate-600">
+                    โครงสร้างพื้นฐานที่แข็งแกร่ง ผสานเทคโนโลยี Cloud เพื่อการประมวลผลข้อมูลขนาดใหญ่แบบ Real-time
+                </p>
+            </div>
+
+            <!-- Architecture Diagram -->
+            <div class="bg-white p-6 sm:p-10 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
+                <div class="min-w-[800px] flex justify-between items-center relative py-10">
+                    
+                    <!-- Node 1: GCS -->
+                    <div class="relative z-10 flex flex-col items-center w-48 group step-connector">
+                        <div class="w-20 h-20 bg-blue-50 border-2 border-blue-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition duration-300 shadow-sm">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-600"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-center">Google Cloud Storage</h4>
+                        <p class="text-xs text-slate-500 text-center mt-2 px-2">
+                            เก็บไฟล์มีเดียขนาดใหญ่ (รูป/วิดีโอ) และ Raw Data
+                        </p>
+                    </div>
+
+                    <!-- Node 2: Cloudflare -->
+                    <div class="relative z-10 flex flex-col items-center w-48 group step-connector">
+                        <div class="w-20 h-20 bg-orange-50 border-2 border-orange-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition duration-300 shadow-sm">
+                            <i class="fa-solid fa-bolt text-3xl text-orange-500"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-center">Cloudflare</h4>
+                        <p class="text-xs text-slate-500 text-center mt-2 px-2">
+                            สร้าง Public Link ที่ปลอดภัยและรวดเร็วสำหรับการเข้าถึงไฟล์
+                        </p>
+                    </div>
+
+                    <!-- Node 3: Databricks (CORE) -->
+                    <div class="relative z-10 flex flex-col items-center w-48 group step-connector">
+                        <div class="w-24 h-24 bg-[#06c755] shadow-lg rounded-2xl flex items-center justify-center mb-4 scale-110 ring-4 ring-green-100 z-20">
+                            <i class="fa-solid fa-brain text-4xl text-white"></i>
+                        </div>
+                        <h4 class="font-bold text-[#06c755] text-lg text-center">Databricks (Core)</h4>
+                        <p class="text-xs text-slate-500 text-center mt-2 px-2 font-medium">
+                            ETL Pipeline, Python Logic, สร้าง UID Flag Table
+                        </p>
+                    </div>
+
+                    <!-- Node 4: Dashboard -->
+                    <div class="relative z-10 flex flex-col items-center w-48 last-step">
+                        <div class="w-20 h-20 bg-indigo-50 border-2 border-indigo-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition duration-300 shadow-sm">
+                            <i class="fa-solid fa-chart-line text-3xl text-indigo-600"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-center">Web Dashboard</h4>
+                        <p class="text-xs text-slate-500 text-center mt-2 px-2">
+                            Audience Builder & ROI Reporting Interface
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Core Modules (Tabs) -->
+    <section id="modules" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-10">
+                <h2 class="text-3xl font-bold text-slate-900">3 โมดูลหลักที่เปลี่ยนเกม (Game Changer)</h2>
+                <p class="mt-4 text-lg text-slate-600">
+                    สำรวจฟังก์ชันการทำงานหลักที่ช่วยให้ทีม Broadcast ทำงานได้แม่นยำขึ้น
+                </p>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="border-b border-slate-200 mb-8 overflow-x-auto">
+                <nav class="flex space-x-8 min-w-max" aria-label="Tabs">
+                    <button onclick="switchTab('uid-flag')" id="tab-uid-flag" class="active-tab py-4 px-1 text-base font-medium transition whitespace-nowrap">
+                        1. UID Flag Table
+                    </button>
+                    <button onclick="switchTab('audience-builder')" id="tab-audience-builder" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 py-4 px-1 text-base font-medium transition whitespace-nowrap">
+                        2. Audience Builder v2.1
+                    </button>
+                    <button onclick="switchTab('analysis')" id="tab-analysis" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 py-4 px-1 text-base font-medium transition whitespace-nowrap">
+                        3. Data Analysis & Attribution
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content: UID Flag Table -->
+            <div id="content-uid-flag" class="grid lg:grid-cols-2 gap-12 items-center animate-fade-in">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">ฐานข้อมูลลูกค้าอัจฉริยะ (Data Foundation)</h3>
+                    <p class="text-slate-600 mb-6">
+                        ระบบจะประมวลผลข้อมูลลูกค้าและติดป้าย (Flag) 'Y' หรือ 'N' ตามเงื่อนไขทางธุรกิจ ทำให้เรามี Segments พร้อมใช้ทันที
+                    </p>
+                    <ul class="space-y-3 mb-6">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-[#06c755] mt-1 mr-3"></i>
+                            <span class="text-slate-700">ระบุสถานะ Active / Inactive</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-[#06c755] mt-1 mr-3"></i>
+                            <span class="text-slate-700">แบ่งกลุ่มตาม RFM Score (High Spender, New User)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-check-circle text-[#06c755] mt-1 mr-3"></i>
+                            <span class="text-slate-700">พร้อมใช้งานทันที ไม่ต้อง Query SQL ใหม่ทุกครั้ง</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-slate-900 rounded-xl p-4 shadow-xl overflow-hidden text-sm font-mono text-slate-300">
+                    <div class="flex items-center space-x-2 mb-4 border-b border-slate-700 pb-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="text-xs text-slate-500 ml-2">preview_uid_flags.csv</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-[#06c755]">
+                                    <th class="pb-2 pr-4">UID</th>
+                                    <th class="pb-2 pr-4">Is_Active</th>
+                                    <th class="pb-2 pr-4">High_Spender</th>
+                                    <th class="pb-2 pr-4">Last_Purchase_30d</th>
+                                    <th class="pb-2">Segment</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-xs">
+                                <tr class="border-b border-slate-800">
+                                    <td class="py-2 pr-4 text-slate-400">U823...a1b</td>
+                                    <td class="py-2 pr-4 text-green-400">Y</td>
+                                    <td class="py-2 pr-4 text-green-400">Y</td>
+                                    <td class="py-2 pr-4 text-red-400">N</td>
+                                    <td class="py-2 text-blue-400">VIP_Dormant</td>
+                                </tr>
+                                <tr class="border-b border-slate-800">
+                                    <td class="py-2 pr-4 text-slate-400">U912...c4d</td>
+                                    <td class="py-2 pr-4 text-green-400">Y</td>
+                                    <td class="py-2 pr-4 text-red-400">N</td>
+                                    <td class="py-2 pr-4 text-green-400">Y</td>
+                                    <td class="py-2 text-blue-400">New_Active</td>
+                                </tr>
+                                <tr class="border-b border-slate-800">
+                                    <td class="py-2 pr-4 text-slate-400">U104...e5f</td>
+                                    <td class="py-2 pr-4 text-red-400">N</td>
+                                    <td class="py-2 pr-4 text-red-400">N</td>
+                                    <td class="py-2 pr-4 text-red-400">N</td>
+                                    <td class="py-2 text-blue-400">Churned</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 pr-4 text-slate-500">...</td>
+                                    <td class="py-2 pr-4">...</td>
+                                    <td class="py-2 pr-4">...</td>
+                                    <td class="py-2 pr-4">...</td>
+                                    <td class="py-2">...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Audience Builder (with LLM Integration) -->
+            <div id="content-audience-builder" class="hidden grid lg:grid-cols-2 gap-12 items-start animate-fade-in">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">Audience Builder Platform v2.1</h3>
+                    <p class="text-slate-600 mb-6">
+                        เครื่องมือสำหรับทีม Broadcast ที่ช่วยให้เลือกกลุ่มเป้าหมายได้ละเอียด และ **บันทึกประวัติการส่ง** อย่างเป็นระบบ
+                    </p>
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-lg p-6">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <h4 class="font-bold text-slate-700">Create New Campaign</h4>
+                            <span class="bg-green-100 text-[#06c755] text-xs px-2 py-1 rounded">Draft</span>
+                        </div>
+                        
+                        <!-- Mock Controls -->
+                        <div class="space-y-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Target Segment (Include)</label>
+                                <select id="target-segment" class="w-full border-slate-300 rounded-md shadow-sm border p-2 text-sm bg-slate-50">
+                                    <option value="All Active Users">All Active Users</option>
+                                    <option value="High Spenders (VIP)" selected>High Spenders (VIP)</option>
+                                    <option value="New Users (Last 7 Days)">New Users (Last 7 Days)</option>
+                                    <option value="Churned Users (30+ days no purchase)">Churned Users (30+ days no purchase)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Exclude Condition</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" checked class="rounded text-[#06c755] focus:ring-[#06c755]">
+                                    <span class="text-sm text-slate-600">Exclude users who purchased in last 24h</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic counter simulation -->
+                        <div class="bg-slate-50 rounded-lg p-4 text-center border border-slate-200">
+                            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Estimated Audience Size</p>
+                            <p class="text-3xl font-bold text-[#06c755] mt-1" id="audience-count">12,450</p>
+                            <p class="text-xs text-slate-400 mt-1">Users</p>
+                        </div>
+                        
+                        <button class="w-full mt-6 bg-slate-800 text-white py-2 rounded-md hover:bg-slate-700 transition text-sm font-medium">
+                            Save & Prepare Broadcast
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- New LLM Content Generator Panel -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-lg p-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i>
+                        <span>✨ AI Content Draft Generator</span>
+                    </h3>
+                    
+                    <p class="text-sm text-slate-600 mb-4">ให้ AI ช่วยร่างข้อความ Broadcast ที่สั้น กระชับ และดึงดูดใจตามกลุ่มเป้าหมายที่เลือก</p>
+
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Campaign Objective (วัตถุประสงค์)</label>
+                    <textarea id="campaign-objective" class="w-full border-slate-300 rounded-md shadow-sm border p-2 text-sm bg-white mb-4" placeholder="เช่น: โปรโมทสินค้าใหม่กลุ่ม Gadget ลด 30% เฉพาะสัปดาห์นี้"></textarea>
+                    
+                    <button onclick="generateCampaignContent()" id="generate-content-btn" class="w-full bg-purple-500 text-white py-2 rounded-md hover:bg-purple-600 transition text-sm font-medium flex items-center justify-center space-x-2 disabled:opacity-50">
+                        <i class="fa-solid fa-robot"></i>
+                        <span>สร้าง Draft ข้อความ</span>
+                    </button>
+                    
+                    <div class="mt-6 pt-4 border-t border-slate-100">
+                        <h4 class="font-bold text-slate-700 mb-2">ข้อความร่าง (Draft Output)</h4>
+                        <div id="content-output" class="min-h-[100px] bg-slate-50 p-3 rounded-lg text-slate-700 text-sm italic border border-slate-200 flex items-center justify-center text-center">
+                            รอการสร้างข้อความจาก AI
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Analysis -->
+            <div id="content-analysis" class="hidden grid lg:grid-cols-2 gap-12 items-center animate-fade-in">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">Data Analysis & Attribution</h3>
+                    <p class="text-slate-600 mb-6">
+                        เชื่อมโยง "เวลาที่ส่ง" กับ "เวลาที่ซื้อ" เพื่อหา **The Golden Hour** และวัดผล Conversion ที่แท้จริง
+                    </p>
+                    <p class="text-slate-600">
+                        กราฟแสดงยอดขายที่พุ่งขึ้นหลังจากส่ง Broadcast ในช่วงเวลาต่างๆ ช่วยให้เราตัดสินใจเลือกเวลาส่งที่ดีที่สุดสำหรับแต่ละ Segment
+                    </p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-lg border border-slate-200">
+                    <h4 class="text-sm font-bold text-slate-700 mb-4 text-center">Conversion Attribution Analysis</h4>
+                    <div class="chart-container">
+                        <canvas id="attributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: Impact Dashboard (Simulation) -->
+    <section id="impact" class="py-16 bg-slate-900 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-10">
+                <div>
+                    <h2 class="text-3xl font-bold text-white">Decision Support Dashboard</h2>
+                    <p class="mt-2 text-slate-400">เปรียบเทียบผลลัพธ์ระหว่างการทำงานแบบเดิม vs ใช้ Data Platform</p>
+                </div>
+                <div class="mt-4 md:mt-0 bg-slate-800 p-2 rounded-lg flex items-center space-x-3 border border-slate-700">
+                    <span class="text-sm font-medium text-slate-300">Enable Data Platform</span>
+                    <!-- Toggle Switch -->
+                    <button id="platform-toggle" onclick="togglePlatform()" class="w-12 h-6 rounded-full bg-slate-600 relative transition-colors duration-300 focus:outline-none">
+                        <div id="toggle-circle" class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 transition-transform duration-300"></div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Metric 1: Conversion Rate -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <p class="text-slate-400 text-sm font-medium">Conversion Rate</p>
+                    <div class="flex items-end space-x-2 mt-2">
+                        <h3 id="metric-conversion" class="text-3xl font-bold text-white">1.2%</h3>
+                        <span id="badge-conversion" class="text-xs bg-slate-600 text-white px-2 py-1 rounded hidden">+0.8%</span>
+                    </div>
+                    <div class="w-full bg-slate-700 h-1.5 mt-4 rounded-full overflow-hidden">
+                        <div id="bar-conversion" class="bg-blue-500 h-full w-[30%] transition-all duration-1000"></div>
+                    </div>
+                </div>
+
+                <!-- Metric 2: Content Relevance -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <p class="text-slate-400 text-sm font-medium">Relevant Users Reached</p>
+                    <div class="flex items-end space-x-2 mt-2">
+                        <h3 id="metric-relevance" class="text-3xl font-bold text-white">45%</h3>
+                        <span id="badge-relevance" class="text-xs bg-slate-600 text-white px-2 py-1 rounded hidden">+30%</span>
+                    </div>
+                    <div class="w-full bg-slate-700 h-1.5 mt-4 rounded-full overflow-hidden">
+                        <div id="bar-relevance" class="bg-yellow-500 h-full w-[45%] transition-all duration-1000"></div>
+                    </div>
+                </div>
+
+                <!-- Metric 3: Cost Efficiency -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <p class="text-slate-400 text-sm font-medium">Cost per Conversion</p>
+                    <div class="flex items-end space-x-2 mt-2">
+                        <h3 id="metric-cost" class="text-3xl font-bold text-white">High</h3>
+                        <span id="badge-cost" class="text-xs bg-green-600 text-white px-2 py-1 rounded hidden">-25%</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-4">Optimized targeting reduces waste</p>
+                </div>
+
+                <!-- Metric 4: Attribution Accuracy -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <p class="text-slate-400 text-sm font-medium">Attribution Accuracy</p>
+                    <div class="flex items-end space-x-2 mt-2">
+                        <h3 id="metric-accuracy" class="text-3xl font-bold text-white">Unknown</h3>
+                        <span id="badge-accuracy" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hidden">High</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-4">Linked to specific UID & Time</p>
+                </div>
+            </div>
+
+            <div class="mt-8 bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h4 class="text-white font-bold mb-4">A/B Testing Performance (Content A vs Content B)</h4>
+                <div class="chart-container h-64">
+                    <canvas id="abTestChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 5: Future Roadmap -->
+    <section id="roadmap" class="py-16 bg-white">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900">แผนงานในอนาคต (Next Steps)</h2>
+                <p class="mt-4 text-lg text-slate-600">วิสัยทัศน์สู่การเป็น Predictive & AI-Driven Platform</p>
+            </div>
+
+            <div class="relative">
+                <div class="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-slate-200"></div>
+                
+                <!-- Phase 1 -->
+                <div class="relative mb-12">
+                    <div class="flex items-center justify-between w-full">
+                        <div class="w-5/12 text-right pr-8">
+                            <h3 class="text-xl font-bold text-[#06c755]">Phase 1: Predictive Model</h3>
+                            <p class="text-sm text-slate-500 mt-2">บูรณาการข้อมูลการขายและ Web Traffic เพื่อสร้างโมเดลพยากรณ์จุดตัดสินใจซื้อ</p>
+                            <span class="inline-block mt-2 px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Next Quarter</span>
+                        </div>
+                        <div class="absolute left-1/2 transform -translate-x-1/2 w-8 h-8 bg-white border-4 border-[#06c755] rounded-full z-10"></div>
+                        <div class="w-5/12 pl-8"></div>
+                    </div>
+                </div>
+
+                <!-- Phase 2 -->
+                <div class="relative">
+                    <div class="flex items-center justify-between w-full">
+                        <div class="w-5/12 text-right pr-8"></div>
+                        <div class="absolute left-1/2 transform -translate-x-1/2 w-8 h-8 bg-white border-4 border-slate-400 rounded-full z-10"></div>
+                        <div class="w-5/12 pl-8">
+                            <h3 class="text-xl font-bold text-slate-800">Phase 2: AI Automation</h3>
+                            <p class="text-sm text-slate-500 mt-2">ใช้ AI Detect รูป/วิดีโอ และระบบแนะนำอัตโนมัติ (Recommendation Engine)</p>
+                            <span class="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-full">Future</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer / CTA -->
+    <footer class="bg-slate-50 border-t border-slate-200 py-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">พร้อมยกระดับธุรกิจด้วย Data หรือยัง?</h2>
+            <p class="text-slate-600 mb-8 max-w-2xl mx-auto">
+                Line Broadcast Data Platform คือการลงทุนในความแม่นยำของการสื่อสารที่จะเปลี่ยนจาก 'ความไม่รู้' เป็น 'ความรู้'
+            </p>
+            <button class="bg-[#06c755] text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-600 transition shadow-lg">
+                เริ่มต้นใช้งาน / ขออนุมัติโครงการ
+            </button>
+            <p class="text-xs text-slate-400 mt-8">&copy; 2025 Line Broadcast Data Platform Project. Internal Use Only.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const API_KEY = "";
+        const GEMINI_TEXT_MODEL = "gemini-2.5-flash-preview-09-2025";
+        const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
+        
+        const TEXT_FOR_TTS = document.getElementById('tts-summary-text').innerText.trim();
+
+        const state = {
+            activeTab: 'uid-flag',
+            platformEnabled: false
+        };
+
+        let attributionChartInstance = null;
+        let abTestChartInstance = null;
+        let audioContext = null;
+
+        const data = {
+            before: { conversion: 1.2, relevance: 45, abTest: [2.5, 2.7] },
+            after: { conversion: 2.0, relevance: 75, abTest: [2.5, 4.2] },
+            attribution: {
+                labels: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'],
+                broadcast: [0, 100, 0, 0, 0, 0, 0], 
+                sales: [10, 15, 85, 60, 40, 25, 20]
+            }
+        };
+
+        // --- Utility Functions for Gemini API ---
+
+        // Exponential backoff retry mechanism
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            const delay = Math.pow(2, i) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function callGeminiApi(prompt) {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TEXT_MODEL}:generateContent?key=${API_KEY}`;
+            const systemPrompt = "คุณคือผู้เชี่ยวชาญด้านการตลาด LINE Broadcast ในประเทศไทย กรุณาร่างข้อความ Broadcast ที่สั้น กระชับ และดึงดูดใจ ให้เป็นภาษาไทยทั้งหมด โดยมีโทนเสียงที่สุภาพและเป็นมิตร และใช้สัญลักษณ์อีโมจิที่เหมาะสมในการสื่อสาร";
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            const response = await fetchWithRetry(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || "เกิดข้อผิดพลาดในการสร้างข้อความ";
+        }
+
+        // --- TTS Helper Functions ---
+
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        function writeUint16(view, offset, value) {
+            view.setUint16(offset, value, true);
+        }
+
+        function writeUint32(view, offset, value) {
+            view.setUint32(offset, value, true);
+        }
+
+        function pcmToWav(pcm16, sampleRate = 24000) {
+            const numChannels = 1;
+            const bytesPerSample = 2; // 16-bit PCM
+            const dataLength = pcm16.byteLength;
+            const buffer = new ArrayBuffer(44 + dataLength);
+            const view = new DataView(buffer);
+
+            // RIFF chunk descriptor
+            writeString(view, 0, 'RIFF');
+            writeUint32(view, 4, 36 + dataLength);
+            writeString(view, 8, 'WAVE');
+
+            // FMT sub-chunk
+            writeString(view, 12, 'fmt ');
+            writeUint32(view, 16, 16); // Sub-chunk size
+            writeUint16(view, 20, 1); // Audio format (1 for PCM)
+            writeUint16(view, 22, numChannels);
+            writeUint32(view, 24, sampleRate);
+            writeUint32(view, 28, sampleRate * numChannels * bytesPerSample); // Byte rate
+            writeUint16(view, 32, numChannels * bytesPerSample); // Block align
+            writeUint16(view, 34, 16); // Bits per sample (16)
+
+            // Data sub-chunk
+            writeString(view, 36, 'data');
+            writeUint32(view, 40, dataLength);
+
+            // Write the PCM data
+            const offset = 44;
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(offset + i * 2, pcm16[i], true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        async function callGeminiTtsApi(text) {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${API_KEY}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: `Say in a clear and professional tone in Thai: ${text}` }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Kore" } // Using Kore for a firm, professional voice
+                        }
+                    }
+                },
+                model: GEMINI_TTS_MODEL
+            };
+
+            const response = await fetchWithRetry(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            const part = result?.candidates?.[0]?.content?.parts?.[0];
+            const audioData = part?.inlineData?.data;
+            const mimeType = part?.inlineData?.mimeType;
+
+            if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                const pcmData = base64ToArrayBuffer(audioData);
+                const pcm16 = new Int16Array(pcmData);
+                // The API returns 24000Hz L16 PCM audio
+                const wavBlob = pcmToWav(pcm16, 24000);
+                return URL.createObjectURL(wavBlob);
+            } else {
+                console.error("TTS API did not return valid audio data.", result);
+                return null;
+            }
+        }
+
+        // --- LLM Feature 1: Campaign Content Generator ---
+        async function generateCampaignContent() {
+            const btn = document.getElementById('generate-content-btn');
+            const outputDiv = document.getElementById('content-output');
+            const segment = document.getElementById('target-segment').value;
+            const objective = document.getElementById('campaign-objective').value;
+
+            if (!objective.trim()) {
+                outputDiv.innerHTML = '<span class="text-red-500">กรุณาระบุวัตถุประสงค์ของแคมเปญก่อนค่ะ</span>';
+                return;
+            }
+
+            const prompt = `Segment: ${segment}. Objective: ${objective}. Based on this, generate a draft LINE Broadcast message (Thai only) that is short, compelling, and includes a clear call to action.`;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>กำลังร่างข้อความ...</span>';
+            outputDiv.innerHTML = '<div class="text-center"><i class="fa-solid fa-spinner fa-spin text-purple-500"></i> <span class="ml-2">กำลังประมวลผล...</span></div>';
+
+            try {
+                const generatedText = await callGeminiApi(prompt);
+                outputDiv.innerHTML = `<pre class="whitespace-pre-wrap font-sans">${generatedText}</pre>`;
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                outputDiv.innerHTML = '<span class="text-red-500">ขออภัย! เกิดข้อผิดพลาดในการเชื่อมต่อ AI</span>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-robot"></i> <span>สร้าง Draft ข้อความ</span>';
+            }
+        }
+        
+        // --- LLM Feature 2: TTS Summary ---
+        async function playSummaryTTS() {
+            const btn = document.getElementById('tts-button');
+            const status = document.getElementById('tts-status');
+            
+            btn.disabled = true;
+            status.classList.remove('hidden');
+            
+            try {
+                const audioUrl = await callGeminiTtsApi(TEXT_FOR_TTS);
+                if (audioUrl) {
+                    const audio = new Audio(audioUrl);
+                    
+                    audio.onended = () => {
+                        btn.disabled = false;
+                        status.classList.add('hidden');
+                    };
+                    
+                    audio.onerror = () => {
+                        console.error("Audio playback error.");
+                        status.innerText = "เกิดข้อผิดพลาดในการเล่นไฟล์เสียง";
+                        btn.disabled = false;
+                    };
+                    
+                    status.innerText = "กำลังเล่นเสียงสรุป...";
+                    await audio.play();
+                } else {
+                    status.innerText = "ไม่สามารถสร้างไฟล์เสียงได้";
+                }
+            } catch (error) {
+                console.error("TTS Process Error:", error);
+                status.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ TTS API";
+            } finally {
+                if (btn.disabled && status.innerText.includes("กำลังเตรียมเสียง")) {
+                     btn.disabled = false;
+                     status.classList.add('hidden');
+                }
+            }
+        }
+        
+        // --- Core Application Logic ---
+
+        function switchTab(tabId) {
+            state.activeTab = tabId;
+
+            ['uid-flag', 'audience-builder', 'analysis'].forEach(id => {
+                document.getElementById(`content-${id}`).classList.add('hidden');
+                const tabBtn = document.getElementById(`tab-${id}`);
+                tabBtn.classList.remove('active-tab');
+                tabBtn.classList.add('border-transparent', 'text-slate-500', 'hover:text-slate-700', 'hover:border-slate-300');
+            });
+
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.add('active-tab');
+            activeBtn.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-700', 'hover:border-slate-300');
+
+            if (tabId === 'analysis') {
+                renderAttributionChart();
+            }
+        }
+
+        function togglePlatform() {
+            state.platformEnabled = !state.platformEnabled;
+            
+            const btn = document.getElementById('platform-toggle');
+            const circle = document.getElementById('toggle-circle');
+            
+            if (state.platformEnabled) {
+                btn.classList.remove('bg-slate-600');
+                btn.classList.add('bg-[#06c755]');
+                circle.classList.add('translate-x-6');
+                
+                updateMetric('conversion', '2.0%', 'w-[80%]', true);
+                updateMetric('relevance', '75%', 'w-[75%]', true);
+                
+                document.getElementById('metric-cost').innerText = 'Low';
+                document.getElementById('badge-cost').classList.remove('hidden');
+                
+                document.getElementById('metric-accuracy').innerText = 'High';
+                document.getElementById('badge-accuracy').classList.remove('hidden');
+
+                updateABChart(data.after.abTest);
+
+            } else {
+                btn.classList.add('bg-slate-600');
+                btn.classList.remove('bg-[#06c755]');
+                circle.classList.remove('translate-x-6');
+                
+                updateMetric('conversion', '1.2%', 'w-[30%]', false);
+                updateMetric('relevance', '45%', 'w-[45%]', false);
+
+                document.getElementById('metric-cost').innerText = 'High';
+                document.getElementById('badge-cost').classList.add('hidden');
+                
+                document.getElementById('metric-accuracy').innerText = 'Unknown';
+                document.getElementById('badge-accuracy').classList.add('hidden');
+
+                updateABChart(data.before.abTest);
+            }
+        }
+
+        function updateMetric(id, value, widthClass, showBadge) {
+            document.getElementById(`metric-${id}`).innerText = value;
+            const bar = document.getElementById(`bar-${id}`);
+            bar.className = bar.className.replace(/w-\[.*?\]/g, '');
+            bar.classList.add(widthClass);
+            
+            const badge = document.getElementById(`badge-${id}`);
+            if (showBadge) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+        }
+
+        function renderAttributionChart() {
+            if (attributionChartInstance) return;
+            
+            const ctx = document.getElementById('attributionChart').getContext('2d');
+            attributionChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.attribution.labels,
+                    datasets: [
+                        {
+                            label: 'Broadcast Sent Volume',
+                            data: data.attribution.broadcast,
+                            borderColor: '#3b82f6', 
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderDash: [5, 5],
+                            yAxisID: 'y1',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Sales Conversions',
+                            data: data.attribution.sales,
+                            borderColor: '#06c755', 
+                            backgroundColor: 'rgba(6, 199, 85, 0.1)',
+                            fill: true,
+                            yAxisID: 'y',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + context.parsed.y; } } }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Sales ($)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: false,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                        },
+                    }
+                }
+            });
+        }
+
+        function initABChart() {
+            const ctx = document.getElementById('abTestChart').getContext('2d');
+            abTestChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Content A (Generic)', 'Content B (Personalized)'],
+                    datasets: [{
+                        label: 'Conversion Rate (%)',
+                        data: data.before.abTest,
+                        backgroundColor: ['#94a3b8', '#06c755'],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            title: { display: true, text: 'Conversion Rate %' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateABChart(newData) {
+            if (!abTestChartInstance) return;
+            abTestChartInstance.data.datasets[0].data = newData;
+            abTestChartInstance.update();
+        }
+
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        });
+        
+        // --- Initialization ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initABChart();
+            switchTab('uid-flag');
+            // Enable TTS button once the DOM is ready
+            document.getElementById('tts-button').disabled = false; 
+        });
+
+    </script>
+</body>
+</html>
